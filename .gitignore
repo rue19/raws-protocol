@@ -1,0 +1,19 @@
+# Environment files — NEVER commit
+contracts/.env
+frontend/.env.local
+keeper/.env
+
+# Rust build artifacts
+contracts/target/
+
+# Node.js
+node_modules/
+frontend/.next/
+frontend/out/
+
+# Stellar CLI
+.stellar/
+
+# OS
+.DS_Store
+Thumbs.db
