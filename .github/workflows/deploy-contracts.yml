@@ -42,6 +42,10 @@ jobs:
         working-directory: contracts
         run: cargo build --target wasm32-unknown-unknown --release
 
+      - name: Optimize WASM
+        working-directory: contracts
+        run: stellar contract optimize --wasm target/wasm32-unknown-unknown/release/raws_vault.wasm
+
       - name: Deploy vault to testnet
         working-directory: contracts
         env:
@@ -50,8 +54,7 @@ jobs:
           stellar network add testnet \
             --rpc-url https://soroban-testnet.stellar.org \
             --network-passphrase "Test SDF Network ; September 2015"
-          stellar keys add raws-deployer --secret "$DEPLOYER_SECRET_KEY" --network testnet
           stellar contract deploy \
             --wasm target/wasm32-unknown-unknown/release/raws_vault.optimized.wasm \
-            --source raws-deployer \
+            --source "$DEPLOYER_SECRET_KEY" \
             --network testnet
