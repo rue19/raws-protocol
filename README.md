@@ -20,16 +20,15 @@ App API + Keeper (Node.js / Render)
      ↕ Supabase Realtime
 Database (Supabase PostgreSQL)
      ↕ Stellar RPC
-Soroban Smart Contracts (Stellar Mainnet)
+Soroban Smart Contracts (Stellar Testnet)
 ```
 
 ## Monorepo Structure
 
 | Folder | Contents |
 |--------|----------|
-| `/contracts` | Soroban/Rust smart contracts (vault + AMM) |
-| `/frontend` | Next.js 14 TypeScript frontend |
-| `/keeper` | Node.js keeper daemon + Fastify REST API |
+| `/contracts` | Soroban/Rust smart contracts (vault) |
+| `/frontend` | Next.js TypeScript frontend |
 
 ## Tech Stack — $0 Infrastructure
 
@@ -45,7 +44,7 @@ Soroban Smart Contracts (Stellar Mainnet)
 
 ### Prerequisites
 - Rust + `wasm32-unknown-unknown` target
-- Stellar CLI (`cargo install --locked stellar-cli --features opt`)
+- Stellar CLI (`cargo install --locked stellar-cli`)
 - Node.js 18+
 
 ### 1. Clone and install
@@ -54,14 +53,12 @@ git clone https://github.com/YOUR_USERNAME/raws-protocol
 cd raws-protocol
 
 cd frontend && npm install
-cd ../keeper && npm install
 ```
 
 ### 2. Configure environment
 ```bash
 cp frontend/.env.local.example frontend/.env.local
-cp keeper/.env.example keeper/.env
-# Fill in your Supabase keys and Stellar keypairs
+# Fill in your Stellar keypairs and contract addresses
 ```
 
 ### 3. Deploy contracts to testnet
@@ -78,11 +75,8 @@ stellar contract deploy \
 
 ### 4. Run locally
 ```bash
-# Terminal 1 — Frontend
+# Frontend
 cd frontend && npm run dev
-
-# Terminal 2 — Keeper
-cd keeper && npx tsx src/index.ts
 ```
 
 ## Build Roadmap
@@ -92,8 +86,8 @@ cd keeper && npx tsx src/index.ts
 | 1 | Project Setup & Environment | Done |
 | 2 | Core Vault Contract (20 tests) | Done |
 | 3 | Single-Asset Deposit Router (11 tests) | Done |
-| 4 | Native StableSwap AMM (40 tests) | Done |
-| 5 | Off-Chain Keeper & IL Watchdog | Done |
+| 4 | Native StableSwap AMM | |
+| 5 | Off-Chain Keeper & IL Watchdog | |
 | 6 | Backend API | |
 | 7 | Frontend Wallet & Deposit UI | |
 | 8 | Frontend Dashboard & Alerts | |
@@ -105,8 +99,20 @@ cd keeper && npx tsx src/index.ts
 | Contract | Testnet Address |
 |----------|----------------|
 | Vault | CC4LKQ5BIVLIBC6ZCJIZPBVLD7JRXQKGT7IL6UM7QDHBDTVGYNBV6IQ3 |
-| StableSwap AMM | CDTNHVUFYEZXZX3UNFF7C3SGOUBOEQA2HMQJ6YLYUPEXH35Y6VGT7IKR |
 
-## Built for Stellar Builders Program 2026
+## Testnet Token Addresses
+
+| Token | Address |
+|-------|---------|
+| USDC | CBT5F2FSLHR4JERVHBIIQXQLONE4HZ5E4KC7W7NTR5NGPSH6KQ4AX4Y7 |
+| XLM (wrapped) | CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC |
+
+## Soroswap Integration
+
+| Contract | Testnet Address |
+|----------|----------------|
+| Soroswap Router | CDGHOS7DDZ7DB24J7TMFDEAIR7LS7GLMT5J5KEZMUF6MSX5BFHCXQIB3 |
+
+## Built for Stellar Buildathon 2026
 
 RAW$ · Real yield or nothing.
