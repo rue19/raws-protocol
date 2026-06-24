@@ -90,7 +90,7 @@ cd keeper && npx tsx src/index.ts
 | Step | Milestone | Status |
 |------|-----------|--------|
 | 1 | Project Setup & Environment | Done |
-| 2 | Core Vault Contract | |
+| 2 | Core Vault Contract | Done |
 | 3 | Single-Asset Deposit Router | |
 | 4 | Native StableSwap AMM | |
 | 5 | Off-Chain Keeper & IL Watchdog | |
@@ -104,7 +104,7 @@ cd keeper && npx tsx src/index.ts
 
 | Contract | Testnet Address |
 |----------|----------------|
-| Vault | CAPUYIQ76PJZT6L5YEYEK6U3WIYRIEHMGOL4MU3XQD7OR44HCHQELBH5 |
+| Vault | CCZMJGAPYSZB3MIXAQ3NMHZETW43MYA4H6HG5O5AEZRQOTLAQOCNIGXO |
 | StableSwap AMM | TBD |
 
 ## Built for Stellar Builders Program 2026
