@@ -92,7 +92,7 @@ cd keeper && npx tsx src/index.ts
 | 1 | Project Setup & Environment | Done |
 | 2 | Core Vault Contract (20 tests) | Done |
 | 3 | Single-Asset Deposit Router (11 tests) | Done |
-| 4 | Native StableSwap AMM | |
+| 4 | Native StableSwap AMM (40 tests) | Done |
 | 5 | Off-Chain Keeper & IL Watchdog | |
 | 6 | Backend API | |
 | 7 | Frontend Wallet & Deposit UI | |
@@ -105,7 +105,7 @@ cd keeper && npx tsx src/index.ts
 | Contract | Testnet Address |
 |----------|----------------|
 | Vault | CC4LKQ5BIVLIBC6ZCJIZPBVLD7JRXQKGT7IL6UM7QDHBDTVGYNBV6IQ3 |
-| StableSwap AMM | TBD |
+| StableSwap AMM | CDTNHVUFYEZXZX3UNFF7C3SGOUBOEQA2HMQJ6YLYUPEXH35Y6VGT7IKR |
 
 ## Built for Stellar Builders Program 2026
 
