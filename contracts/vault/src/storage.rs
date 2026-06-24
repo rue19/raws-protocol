@@ -87,3 +87,28 @@ pub fn is_initialized(env: &Env) -> bool {
         .get::<StorageKey, Address>(&StorageKey::Admin)
         .is_some()
 }
+
+pub fn get_soroswap_router(env: &Env) -> Address {
+    env.storage()
+        .instance()
+        .get::<StorageKey, Address>(&StorageKey::SoroswapRouter)
+        .expect("soroswap router not initialized")
+}
+
+pub fn set_soroswap_router(env: &Env, router: &Address) {
+    env.storage()
+        .instance()
+        .set(&StorageKey::SoroswapRouter, router);
+}
+
+pub fn get_position(env: &Env, pool_id: &Address) -> Option<crate::types::LPPosition> {
+    env.storage()
+        .instance()
+        .get::<StorageKey, crate::types::LPPosition>(&StorageKey::Positions(pool_id.clone()))
+}
+
+pub fn set_position(env: &Env, pool_id: &Address, position: &crate::types::LPPosition) {
+    env.storage()
+        .instance()
+        .set(&StorageKey::Positions(pool_id.clone()), position);
+}

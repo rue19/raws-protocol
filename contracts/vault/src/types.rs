@@ -11,8 +11,11 @@ pub enum VaultMode {
 #[derive(Clone, Debug)]
 pub struct LPPosition {
     pub pool_id: Address,
-    pub lp_token_amount: i128,
+    pub lp_tokens: i128,
+    pub entry_price_ratio: i128,
     pub entry_timestamp: u64,
+    pub token_a: Address,
+    pub token_b: Address,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -24,6 +27,8 @@ pub enum StorageKey {
     Mode,
     TotalLp,
     UserShares(Address),
+    SoroswapRouter,
+    Positions(Address),
 }
 
 #[contracterror]
