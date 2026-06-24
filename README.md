@@ -93,7 +93,7 @@ cd keeper && npx tsx src/index.ts
 | 2 | Core Vault Contract (20 tests) | Done |
 | 3 | Single-Asset Deposit Router (11 tests) | Done |
 | 4 | Native StableSwap AMM (40 tests) | Done |
-| 5 | Off-Chain Keeper & IL Watchdog | |
+| 5 | Off-Chain Keeper & IL Watchdog | Done |
 | 6 | Backend API | |
 | 7 | Frontend Wallet & Deposit UI | |
 | 8 | Frontend Dashboard & Alerts | |
