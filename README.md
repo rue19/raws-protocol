@@ -23,12 +23,15 @@ Database (Supabase PostgreSQL)
 Soroban Smart Contracts (Stellar Testnet)
 ```
 
+The off-chain keeper is the brain of the protocol — it monitors pool health every 30 minutes, auto-compounds rewards every 4 hours, and fires smart-exit alerts when impermanent loss exceeds safe thresholds.
+
 ## Monorepo Structure
 
 | Folder | Contents |
 |--------|----------|
 | `/contracts` | Soroban/Rust smart contracts (vault + AMM) |
 | `/frontend` | Next.js TypeScript frontend |
+| `/keeper` | Off-chain Node.js keeper (Horizon polling, IL watchdog, auto-compound) |
 
 ## Tech Stack — $0 Infrastructure
 
@@ -45,20 +48,29 @@ Soroban Smart Contracts (Stellar Testnet)
 ### Prerequisites
 - Rust + `wasm32-unknown-unknown` target
 - Stellar CLI (`cargo install --locked stellar-cli`)
-- Node.js 18+
+- Node.js 20+
 
 ### 1. Clone and install
 ```bash
 git clone https://github.com/YOUR_USERNAME/raws-protocol
 cd raws-protocol
 
+npm install    # root workspace (if configured)
 cd frontend && npm install
 ```
 
 ### 2. Configure environment
+
+**Frontend:**
 ```bash
 cp frontend/.env.local.example frontend/.env.local
 # Fill in your Stellar keypairs and contract addresses
+```
+
+**Keeper:**
+```bash
+cp keeper/.env.example keeper/.env
+# Fill in Stellar RPC, Supabase credentials, keeper keypair
 ```
 
 ### 3. Deploy contracts to testnet
@@ -74,9 +86,15 @@ stellar contract deploy \
 ```
 
 ### 4. Run locally
+
+**Frontend:**
 ```bash
-# Frontend
 cd frontend && npm run dev
+```
+
+**Keeper (requires .env with valid credentials):**
+```bash
+cd keeper && npm run dev
 ```
 
 ## Build Roadmap
@@ -87,7 +105,7 @@ cd frontend && npm run dev
 | 2 | Core Vault Contract (20 tests) | Done |
 | 3 | Single-Asset Deposit Router (11 tests) | Done |
 | 4 | Native StableSwap AMM (12 tests) | Done |
-| 5 | Off-Chain Keeper & IL Watchdog | |
+| 5 | Off-Chain Keeper & IL Watchdog | Done (21 tests) |
 | 6 | Backend API | |
 | 7 | Frontend Wallet & Deposit UI | |
 | 8 | Frontend Dashboard & Alerts | |
@@ -147,6 +165,31 @@ Phase 4 introduces RAW$'s own on-chain StableSwap AMM — a two-token pool (USDC
 - `remove_liquidity()` — proportional withdrawal
 - Fee accrual — LPs earn from swap fees
 - Invalid token panic, ANN==400 constant check
+
+## RAW$ Keeper (Phase 5)
+
+The off-chain keeper is a Node.js service deployed on Render that monitors the vault and AMM pools.
+
+### Scheduled Jobs
+
+| Job | Interval | Description |
+|-----|----------|-------------|
+| `watchdog` | Every 30 min | Polls Horizon for pool reserves & fees, computes IL, classifies pool health (GREEN/YELLOW/RED/RED_CRITICAL), upserts to `pool_snapshots` |
+| `harvester` | Every 4 hours | Queries Aquarius for pending rewards, calls vault `harvest()` via the authorized keeper keypair, logs to `compound_log` |
+
+### IL Classifier (Deterministic — No AI)
+
+- **GREEN** — Net Effective Yield (NEY) > 0 (fees > IL)
+- **YELLOW** — NEY between 0 and threshold (-10%)
+- **RED** — NEY below threshold
+- **RED_CRITICAL** — 3 consecutive RED periods → triggers `SMART_EXIT` alert
+
+### Key Design Rules
+
+1. **Off-chain observes, on-chain executes** — keeper never holds user funds
+2. **Keeper keypair is restricted** — only authorized for `harvest()` on-chain
+3. **Idempotent** — all cron jobs safe to run twice without double-effects
+4. **No partial trust in DB** — Supabase is a performance cache; keeper logs & retries if down
 
 ## Built for Stellar Buildathon 2026
 

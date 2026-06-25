@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: raws-keeper
+    runtime: node
+    rootDir: keeper
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: STELLAR_NETWORK
+        value: testnet
+      - key: SOROBAN_RPC_URL
+        sync: false
+      - key: HORIZON_URL
+        sync: false
+      - key: VAULT_CONTRACT_ID
+        sync: false
+      - key: AMM_CONTRACT_ID
+        sync: false
+      - key: KEEPER_SECRET_KEY
+        sync: false
+      - key: KEEPER_PUBLIC_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: AQUARIUS_API_URL
+        sync: false
+      - key: SOROSWAP_API_URL
+        sync: false
+      - key: WATCHDOG_INTERVAL_CRON
+        value: "*/30 * * * *"
+      - key: COMPOUND_INTERVAL_CRON
+        value: "0 */4 * * *"
+      - key: YELLOW_THRESHOLD
+        value: "-0.10"
+      - key: RED_STREAK_TO_ALERT
+        value: "3"
+      - key: MIN_COMPOUND_THRESHOLD_STROOPS
+        value: "10000"
+      - key: LOG_LEVEL
+        value: info
+      - key: PORT
+        value: "10000"
