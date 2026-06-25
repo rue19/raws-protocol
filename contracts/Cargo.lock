@@ -985,6 +985,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "raws-amm"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "raws-vault"
 version = "0.1.0"
 dependencies = [

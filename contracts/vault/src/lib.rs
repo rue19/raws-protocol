@@ -382,4 +382,127 @@ impl VaultContract {
 
         df_tokens
     }
+
+    // ─── Phase 4 Functions ───────────────────────────────────────
+
+    /// Set the RAW$ AMM contract address. Admin-only.
+    pub fn set_amm_address(env: Env, caller: Address, amm: Address) {
+        let admin = get_admin(&env);
+        if caller != admin {
+            panic!("set_amm_address: only admin");
+        }
+        caller.require_auth();
+        set_amm_address(&env, &amm);
+    }
+
+    /// Get the RAW$ AMM contract address.
+    pub fn get_amm_address(env: Env) -> Address {
+        get_amm_address(&env).expect("AMM address not set")
+    }
+
+    /// Safe Mode deposit: routes single-token deposit into RAW$ AMM via C2C.
+    ///
+    /// Flow:
+    /// 1. Pull token_in from caller
+    /// 2. C2C call: AMM add_liquidity(caller, desired_a, desired_b, min_shares)
+    /// 3. Mint dfTokens proportional to LP shares received
+    /// 4. Update vault positions map
+    pub fn deposit_safe_mode(
+        env: Env,
+        caller: Address,
+        token_in: Address,
+        amount_in: i128,
+        min_shares: i128,
+    ) -> i128 {
+        caller.require_auth();
+        assert!(amount_in > 0, "deposit_safe_mode: amount_in must be > 0");
+
+        let mode = get_mode(&env);
+        assert!(mode == VaultMode::SafeMode, "VaultNotInSafeMode");
+
+        let amm_address = get_amm_address(&env).expect("AMM address not configured");
+
+        // Pull token_in from caller
+        let token_in_client = token::Client::new(&env, &token_in);
+        token_in_client.transfer(&caller, &env.current_contract_address(), &amount_in);
+
+        // For now: Safe Mode requires balanced deposit (equal value both tokens)
+        // TODO (post-buildathon): add single-asset path via swap → add_liquidity
+        // Simplified: caller deposits amount_in of one token, vault needs to figure out the pair
+        // For the AMM: pass as desired_a or desired_b depending on which token
+        // Since the AMM stores token_a and token_b, we need to check which one matches
+        // C2C Call: AMM add_liquidity
+        // Since we only have one token, we deposit it all as that token's side
+        // The other side gets 0
+        let lp_shares_received: i128 = env.invoke_contract(
+            &amm_address,
+            &Symbol::new(&env, "add_liq"),
+            soroban_sdk::vec![
+                &env,
+                caller.clone().into_val(&env),
+                amount_in.into_val(&env),
+                0i128.into_val(&env),
+                min_shares.into_val(&env),
+            ],
+        );
+
+        assert!(
+            lp_shares_received >= min_shares,
+            "SafeMode: InsufficientLPShares"
+        );
+
+        // Mint dfTokens using Phase 2's share logic
+        let shares_supply = get_shares_supply(&env);
+        let total_lp = get_total_lp(&env);
+        let df_tokens = if shares_supply == 0 {
+            lp_shares_received
+        } else {
+            lp_shares_received
+                .checked_mul(shares_supply)
+                .expect("math overflow")
+                / total_lp
+        };
+
+        set_user_shares(
+            &env,
+            &caller,
+            get_user_shares(&env, &caller) + df_tokens,
+        );
+        set_shares_supply(&env, shares_supply + df_tokens);
+        set_total_lp(&env, total_lp + lp_shares_received);
+
+        // Update positions map with AMM LP shares
+        let existing_lp = {
+            let pos = get_position(&env, &amm_address);
+            pos.map(|p| p.lp_tokens).unwrap_or(0)
+        };
+
+        // Query AMM for its token_b address
+        let amm_token_b: Address = env.invoke_contract(
+            &amm_address,
+            &Symbol::new(&env, "get_token_b"),
+            soroban_sdk::vec![&env],
+        );
+
+        let position = LPPosition {
+            pool_id: amm_address.clone(),
+            lp_tokens: existing_lp + lp_shares_received,
+            entry_price_ratio: 0,
+            entry_timestamp: env.ledger().timestamp(),
+            token_a: token_in.clone(),
+            token_b: amm_token_b,
+        };
+        set_position(&env, &amm_address, &position);
+
+        emit_deposit_single_asset(
+            &env,
+            &caller,
+            &token_in,
+            amount_in,
+            lp_shares_received,
+            df_tokens,
+        );
+
+        df_tokens
+    }
 }

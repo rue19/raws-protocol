@@ -27,7 +27,7 @@ Soroban Smart Contracts (Stellar Testnet)
 
 | Folder | Contents |
 |--------|----------|
-| `/contracts` | Soroban/Rust smart contracts (vault) |
+| `/contracts` | Soroban/Rust smart contracts (vault + AMM) |
 | `/frontend` | Next.js TypeScript frontend |
 
 ## Tech Stack — $0 Infrastructure
@@ -86,7 +86,7 @@ cd frontend && npm run dev
 | 1 | Project Setup & Environment | Done |
 | 2 | Core Vault Contract (20 tests) | Done |
 | 3 | Single-Asset Deposit Router (11 tests) | Done |
-| 4 | Native StableSwap AMM | |
+| 4 | Native StableSwap AMM (12 tests) | Done |
 | 5 | Off-Chain Keeper & IL Watchdog | |
 | 6 | Backend API | |
 | 7 | Frontend Wallet & Deposit UI | |
@@ -99,12 +99,14 @@ cd frontend && npm run dev
 | Contract | Testnet Address |
 |----------|----------------|
 | Vault | CC4LKQ5BIVLIBC6ZCJIZPBVLD7JRXQKGT7IL6UM7QDHBDTVGYNBV6IQ3 |
+| AMM (StableSwap) | CDTNHVUFYEZXZX3UNFF7C3SGOUBOEQA2HMQJ6YLYUPEXH35Y6VGT7IKR |
 
 ## Testnet Token Addresses
 
 | Token | Address |
 |-------|---------|
 | USDC | CBT5F2FSLHR4JERVHBIIQXQLONE4HZ5E4KC7W7NTR5NGPSH6KQ4AX4Y7 |
+| EURC | (add after testnet deployment) |
 | XLM (wrapped) | CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC |
 
 ## Soroswap Integration
@@ -112,6 +114,39 @@ cd frontend && npm run dev
 | Contract | Testnet Address |
 |----------|----------------|
 | Soroswap Router | CDGHOS7DDZ7DB24J7TMFDEAIR7LS7GLMT5J5KEZMUF6MSX5BFHCXQIB3 |
+
+## RAW$ StableSwap AMM
+
+Phase 4 introduces RAW$'s own on-chain StableSwap AMM — a two-token pool (USDC/EURC) using the Curve StableSwap invariant.
+
+### Key Parameters
+| Parameter | Value |
+|-----------|-------|
+| Amplification (A) | 100 |
+| Swap Fee | 0.04% (4 bps) |
+| Tokens | USDC / EURC (both 6 decimals) |
+| Math | All i128, Newton's method |
+
+### Contract Functions
+| Function | Description |
+|----------|-------------|
+| `init()` | Deploy pool with mandatory initial deposit (inflation attack guard) |
+| `exchange()` | Swap token A ↔ B with slippage guard |
+| `add_liquidity()` | Deposit both tokens, receive LP shares |
+| `remove_liquidity()` | Burn LP shares, receive proportional tokens |
+| `get_balances()` | Read pool reserves |
+| `get_total_shares()` | Read total LP supply |
+| `get_user_shares()` | Read user LP balance |
+
+### Test Coverage (12 tests)
+- `get_d()` — balanced pool, empty pool, invariant preservation
+- `get_y()` — output never exceeds balance
+- Slippage near peg (A=100 keeps <0.1%)
+- Depeg scenarios — graceful degradation, pool never drains
+- `add_liquidity()` — proportional share minting
+- `remove_liquidity()` — proportional withdrawal
+- Fee accrual — LPs earn from swap fees
+- Invalid token panic, ANN==400 constant check
 
 ## Built for Stellar Buildathon 2026
 

@@ -29,6 +29,7 @@ pub enum StorageKey {
     UserShares(Address),
     SoroswapRouter,
     Positions(Address),
+    RawsAmmAddress,
 }
 
 #[contracterror]

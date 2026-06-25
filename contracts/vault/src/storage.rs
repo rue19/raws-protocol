@@ -112,3 +112,15 @@ pub fn set_position(env: &Env, pool_id: &Address, position: &crate::types::LPPos
         .instance()
         .set(&StorageKey::Positions(pool_id.clone()), position);
 }
+
+pub fn get_amm_address(env: &Env) -> Option<Address> {
+    env.storage()
+        .instance()
+        .get::<StorageKey, Address>(&StorageKey::RawsAmmAddress)
+}
+
+pub fn set_amm_address(env: &Env, amm: &Address) {
+    env.storage()
+        .instance()
+        .set(&StorageKey::RawsAmmAddress, amm);
+}
