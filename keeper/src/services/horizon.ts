@@ -65,7 +65,7 @@ interface PoolReservesResponse {
 export async function getPoolReserves(
   poolId: string
 ): Promise<{ reserveA: bigint; reserveB: bigint }> {
-  const url = `${config.HORIZON_URL}/liquidity_pools/${poolId}`;
+  const url = `${config.STELLAR_HORIZON_URL}/liquidity_pools/${poolId}`;
   const response = await fetchWithRetry(url);
   const data = (await response.json()) as PoolReservesResponse;
   return {
@@ -90,7 +90,7 @@ export async function getFeeRevenueSince(
   poolId: string,
   sinceTimestamp: Date
 ): Promise<bigint> {
-  const url = `${config.HORIZON_URL}/liquidity_pools/${poolId}/effects?order=asc&limit=200`;
+  const url = `${config.STELLAR_HORIZON_URL}/liquidity_pools/${poolId}/effects?order=asc&limit=200`;
   const response = await fetchWithRetry(url);
   const data = (await response.json()) as EffectsResponse;
   const sinceMs = sinceTimestamp.getTime();

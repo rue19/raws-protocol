@@ -4,7 +4,7 @@ import { logger } from "../lib/logger";
 import { getPendingRewards } from "./aquarius";
 
 const keeperKeypair = Keypair.fromSecret(config.KEEPER_SECRET_KEY);
-const server = new rpc.Server(config.SOROBAN_RPC_URL);
+const server = new rpc.Server(config.STELLAR_RPC_URL);
 
 const networkPassphrase =
   config.STELLAR_NETWORK === "testnet"

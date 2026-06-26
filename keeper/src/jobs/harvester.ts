@@ -15,7 +15,7 @@ export async function runCompoundCycle(): Promise<void> {
   for (const pos of positions) {
     try {
       const pending = await getPendingRewards(pos.lp_address || pos.pool_id);
-      if (pending < BigInt(config.MIN_COMPOUND_THRESHOLD_STROOPS)) {
+      if (pending < BigInt(10000)) {
         logger.debug({ pool: pos.pool_id }, "pending rewards below threshold — skipping");
         continue;
       }

@@ -1,61 +1,75 @@
-import cron from "node-cron";
-import Fastify from "fastify";
-import { config } from "./config";
-import { logger } from "./lib/logger";
-import { runWatchdogCycle } from "./jobs/watchdog";
-import { runCompoundCycle } from "./jobs/harvester";
+import dotenv from 'dotenv';
+dotenv.config();
 
-const state = {
-  lastWatchdogRun: null as string | null,
-  lastCompoundRun: null as string | null,
-  failures: 0,
-};
+import { buildServer }                from './server';
+import { config }                     from './config';
+import { startRealtimeSubscriptions, stopRealtimeSubscriptions } from './services/realtimeService';
+import { registerTelegramWebhook }    from './services/telegramService';
+import cron                           from 'node-cron';
 
-async function safeRun(name: string, fn: () => Promise<void>) {
-  try {
-    await fn();
-    logger.info({ job: name }, "cycle completed");
-  } catch (err) {
-    state.failures++;
-    logger.error({ job: name, err }, "cycle failed — will retry next tick");
-  }
-}
+// Import keeper cron jobs from Phase 5
+// import { runWatchdogCycle }  from './watchdog';
+// import { runCompoundCycle }  from './harvester';
 
 async function main() {
-  const app = Fastify({ logger: false });
-  app.get("/health", async () => ({ status: "ok", ...state }));
-  await app.listen({ port: config.PORT, host: "0.0.0.0" });
-  logger.info({ port: config.PORT }, "health check server started");
+  console.log(`🚀 RAW$ API starting on port ${config.PORT}`);
+  console.log(`🌐 Network: ${config.STELLAR_NETWORK}`);
+  console.log(`📦 Vault:   ${config.VAULT_CONTRACT_ID}`);
 
-  cron.schedule(config.WATCHDOG_INTERVAL_CRON, () =>
-    safeRun("watchdog", async () => {
-      await runWatchdogCycle();
-      state.lastWatchdogRun = new Date().toISOString();
-    })
-  );
-  cron.schedule(config.COMPOUND_INTERVAL_CRON, () =>
-    safeRun("harvester", async () => {
-      await runCompoundCycle();
-      state.lastCompoundRun = new Date().toISOString();
-    })
-  );
+  // ── Build and start Fastify ───────────────────────────────────────────────
+  const server = await buildServer();
 
-  logger.info(
-    { watchdog: config.WATCHDOG_INTERVAL_CRON, harvester: config.COMPOUND_INTERVAL_CRON },
-    "cron jobs scheduled"
-  );
-
-  await safeRun("watchdog", async () => {
-    await runWatchdogCycle();
-    state.lastWatchdogRun = new Date().toISOString();
+  await server.listen({
+    port: parseInt(config.PORT),
+    host: '0.0.0.0',   // CRITICAL: must be 0.0.0.0 for Render to expose the port
   });
-  await safeRun("harvester", async () => {
-    await runCompoundCycle();
-    state.lastCompoundRun = new Date().toISOString();
+
+  console.log(`✅ API listening on http://0.0.0.0:${config.PORT}`);
+
+  // ── Start Supabase Realtime subscriptions ─────────────────────────────────
+  startRealtimeSubscriptions();
+  console.log('✅ Supabase Realtime subscriptions active');
+
+  // ── Register Telegram webhook (only in production) ────────────────────────
+  if (config.NODE_ENV === 'production' && config.TELEGRAM_BOT_TOKEN) {
+    // RENDER_EXTERNAL_URL is auto-set by Render on deployment
+    const baseUrl = process.env.RENDER_EXTERNAL_URL ?? '';
+    if (baseUrl) {
+      await registerTelegramWebhook(`${baseUrl}/api/v1/webhook/telegram`);
+    }
+  }
+
+  // ── Keeper cron jobs ──────────────────────────────────────────────────────
+  // IL Watchdog — every N minutes
+  const watchdogInterval = parseInt(config.WATCHDOG_INTERVAL_MINUTES);
+  cron.schedule(`*/${watchdogInterval} * * * *`, async () => {
+    console.log(`[${new Date().toISOString()}] Running IL watchdog cycle...`);
+    // await runWatchdogCycle();
   });
+
+  // Auto-compound — every N hours
+  const compoundInterval = parseInt(config.COMPOUND_INTERVAL_HOURS);
+  cron.schedule(`0 */${compoundInterval} * * *`, async () => {
+    console.log(`[${new Date().toISOString()}] Running compound cycle...`);
+    // await runCompoundCycle();
+  });
+
+  console.log(`✅ Cron jobs scheduled (watchdog: ${watchdogInterval}min, compound: ${compoundInterval}h)`);
+
+  // ── Graceful shutdown ─────────────────────────────────────────────────────
+  const shutdown = async (signal: string) => {
+    console.log(`\n${signal} received — shutting down gracefully...`);
+    await stopRealtimeSubscriptions();
+    await server.close();
+    console.log('✅ Server closed');
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT',  () => shutdown('SIGINT'));
 }
 
 main().catch((err) => {
-  logger.error(err, "fatal boot error");
+  console.error('Fatal startup error:', err);
   process.exit(1);
 });

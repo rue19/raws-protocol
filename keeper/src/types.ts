@@ -1,3 +1,6 @@
+// Legacy Phase 5 types — kept for backward compatibility with jobs/ and lib/
+// Phase 6 types are in types/index.ts
+
 export interface PoolSnapshot {
   pool_id: string;
   reserve_a: bigint;

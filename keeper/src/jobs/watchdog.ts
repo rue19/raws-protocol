@@ -9,6 +9,9 @@ import {
 } from "../services/supabase";
 import { logger } from "../lib/logger";
 
+const RED_STREAK_TO_ALERT = parseInt(config.RED_ALERT_THRESHOLD);
+const YELLOW_THRESHOLD = -0.10;
+
 export async function runWatchdogCycle(): Promise<void> {
   const snapshots = await snapshotAllPools();
 
@@ -20,10 +23,10 @@ export async function runWatchdogCycle(): Promise<void> {
       const poolEntryRatio = positions[0].entry_price_ratio;
       const enrichedSnap = { ...snap, entry_price_ratio: poolEntryRatio };
 
-      const history = await getRecentSnapshots(snap.pool_id, config.RED_STREAK_TO_ALERT);
+      const history = await getRecentSnapshots(snap.pool_id, RED_STREAK_TO_ALERT);
       const { status, ney } = await evalPoolHealth(enrichedSnap, history, {
-        yellowThreshold: config.YELLOW_THRESHOLD,
-        redStreakToAlert: config.RED_STREAK_TO_ALERT,
+        yellowThreshold: YELLOW_THRESHOLD,
+        redStreakToAlert: RED_STREAK_TO_ALERT,
       });
 
       await upsertPoolSnapshot({
