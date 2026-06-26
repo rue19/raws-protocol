@@ -1,7 +1,7 @@
 'use client'
 import { useState, useCallback } from 'react'
 import { useWallet } from '@/components/wallet/WalletProvider'
-import { sorobanServer, NETWORK_PASSPHRASE, VAULT_CONTRACT_ID } from '@/lib/stellar'
+import { getSorobanServer, NETWORK_PASSPHRASE, VAULT_CONTRACT_ID } from '@/lib/stellar'
 import {
   Contract,
   TransactionBuilder,
@@ -56,7 +56,7 @@ export function useDeposit(pool: Pool) {
       const amount = parseFloat(state.amount)
       const amountStroop = BigInt(Math.round(amount * 10_000_000))
 
-      const account = await sorobanServer.getAccount(publicKey)
+      const account = await getSorobanServer().getAccount(publicKey)
       const contract = new Contract(VAULT_CONTRACT_ID)
       const operation = contract.call(
         'deposit',
@@ -73,7 +73,7 @@ export function useDeposit(pool: Pool) {
         .setTimeout(TimeoutInfinite)
         .build()
 
-      const simResult = await sorobanServer.simulateTransaction(tx)
+      const simResult = await getSorobanServer().simulateTransaction(tx)
       if (rpc.Api.isSimulationError(simResult)) {
         throw new Error(`Simulation failed: ${simResult.error}`)
       }
@@ -86,7 +86,7 @@ export function useDeposit(pool: Pool) {
       setState((s) => ({ ...s, phase: 'SUBMITTING' }))
 
       const envelope = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE)
-      const { hash } = await sorobanServer.sendTransaction(envelope)
+      const { hash } = await getSorobanServer().sendTransaction(envelope)
 
       setState((s) => ({ ...s, phase: 'POLLING', txHash: hash }))
     } catch (err: any) {

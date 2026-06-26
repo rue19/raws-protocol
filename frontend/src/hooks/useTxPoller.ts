@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { sorobanServer } from '@/lib/stellar'
+import { getSorobanServer } from '@/lib/stellar'
 import type { TxPollResult } from '@/types'
 
 export function useTxPoller(
@@ -23,7 +23,7 @@ export function useTxPoller(
       }
 
       try {
-        const response = await sorobanServer.getTransaction(txHash)
+        const response = await getSorobanServer().getTransaction(txHash)
         if (response.status === 'SUCCESS') {
           if (intervalRef.current) clearInterval(intervalRef.current)
           onResult('CONFIRMED', response)
