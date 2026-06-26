@@ -2,195 +2,131 @@
 
 > The naked truth about your yield.
 
-RAW$ is a Stellar-native yield optimizer vault that shows you your **actual** profit
-after impermanent loss — not a fake APY number. Deposit a single token, and RAW$
-automatically splits it, LPs across Aquarius/Soroswap/Phoenix, auto-compounds your
-rewards, and alerts you when a pool starts losing money.
+RAW$ is a Stellar-native DeFi yield optimizer. Deposit a single token — RAW$
+automatically splits it, provides liquidity across Aquarius, Soroswap, and Phoenix,
+auto-compounds your rewards every 4 hours, and shows your **Net Effective Yield**
+(fees earned minus impermanent loss) — a metric no existing Stellar protocol offers.
 
-## Why RAW$
+## Live
 
-Every yield optimizer shows you APY. None of them subtract impermanent loss. RAW$ does.
+| Resource | Link |
+|----------|------|
+| App | https://frontend-beta-rouge-rgheunscve.vercel.app |
+| API | https://raws-api.onrender.com |
+| GitHub | https://github.com/rue19/raws-protocol |
+
+## Smart Contracts (Stellar Mainnet)
+
+| Contract | Address | Explorer |
+|----------|---------|---------|
+| Vault | `<MAINNET_VAULT_CONTRACT_ID>` | [View on Stellar Expert](https://stellar.expert/explorer/public/contract/<MAINNET_VAULT_CONTRACT_ID>) |
+| StableSwap AMM | `<MAINNET_AMM_CONTRACT_ID>` | [View on Stellar Expert](https://stellar.expert/explorer/public/contract/<MAINNET_AMM_CONTRACT_ID>) |
 
 ## Architecture
 
 ```
-Client (Next.js / Vercel)
-     ↕ REST + WebSocket
-App API + Keeper (Node.js / Render)
-     ↕ Supabase Realtime
-Database (Supabase PostgreSQL)
-     ↕ Stellar RPC
-Soroban Smart Contracts (Stellar Testnet)
+Next.js Frontend (Vercel)
+       ↕ REST + WebSocket
+Fastify API + Node.js Keeper (Render)
+       ↕ Supabase Realtime
+Supabase PostgreSQL
+       ↕ Soroban RPC
+Soroban Smart Contracts (Stellar Mainnet)
+  ├── Vault — deposit, withdraw, harvest, dfToken shares
+  └── StableSwap AMM — USDC/EURC Safe Mode pool, A=100, 0.04% fee
 ```
 
-The off-chain keeper is the brain of the protocol — it monitors pool health every 30 minutes, auto-compounds rewards every 4 hours, and fires smart-exit alerts when impermanent loss exceeds safe thresholds.
+## How It Works
 
-## Monorepo Structure
+### Single-Asset Deposit (one click)
+1. You deposit any single token (e.g. XLM)
+2. Vault calculates the optimal split ratio from pool reserves
+3. Contract-to-contract call: Vault → Soroswap router (swap half to the pair token)
+4. Contract-to-contract call: Vault → target pool add_liquidity
+5. dfTokens minted to your address, representing your share
+6. All atomic — if any step fails, your funds are returned in full
 
-| Folder | Contents |
-|--------|----------|
-| `/contracts` | Soroban/Rust smart contracts (vault + AMM) |
-| `/frontend` | Next.js TypeScript frontend |
-| `/keeper` | Off-chain Node.js keeper (Horizon polling, IL watchdog, auto-compound) |
+### Net Effective Yield
+NEY = swap fee revenue − impermanent loss
 
-## Tech Stack — $0 Infrastructure
+Shown live on your dashboard. Updated every 30 minutes by the keeper watchdog.
+No competitor shows this number.
+
+### Auto-Compound
+Every 4 hours, the keeper harvests AQUA rewards and reinvests them.
+At Stellar's $0.00015 tx fee, this is economically positive at any deposit size.
+
+### Pool Health Alerts
+If a pool's NEY is negative for 3 consecutive 30-minute periods (90 minutes),
+you receive a Telegram notification + in-app alert with a one-click exit to a
+better pool.
+
+## Real Yield vs Emission Yield
+The dashboard separates:
+- **Real Yield** — from actual swap fees. Sustainable indefinitely.
+- **Emission Yield** — from AQUA incentives. Ends when the program ends.
+
+## $0 Infrastructure
 
 | Layer | Tool | Cost |
 |-------|------|------|
 | Frontend | Next.js + Vercel | Free |
-| API/Keeper | Node.js + Render | Free |
+| API + Keeper | Node.js + Render | Free |
 | Database | Supabase | Free |
-| Contracts | Soroban + Stellar RPC | Free |
+| Stellar RPC | SDF Public | Free |
 | Notifications | Telegram Bot API | Free |
+| CI/CD | GitHub Actions | Free |
+| **Total** | | **$0/month** |
 
-## Local Setup
+## Technical Stack
+
+- **Smart Contracts:** Rust + Soroban SDK v22 + Stellar CLI
+- **AMM:** StableSwap invariant (Curve-style, A=100) — not constant-sum
+- **Frontend:** Next.js 16 + TypeScript + Tailwind v4 + Zustand + Recharts
+- **Wallet:** Stellar Wallets Kit (Freighter, xBull, LOBSTR)
+- **API:** Fastify v4 + TypeScript + WebSocket (live position updates)
+- **Database:** Supabase (Postgres + Realtime subscriptions)
+- **Keeper:** Node.js daemon + node-cron (watchdog + auto-compound)
+
+## Local Development
 
 ### Prerequisites
 - Rust + `wasm32-unknown-unknown` target
-- Stellar CLI (`cargo install --locked stellar-cli`)
-- Node.js 20+
+- Stellar CLI (`cargo install --locked stellar-cli --features opt`)
+- Node.js >= 22
 
-### 1. Clone and install
+### Setup
 ```bash
-git clone https://github.com/YOUR_USERNAME/raws-protocol
+git clone https://github.com/rue19/raws-protocol
 cd raws-protocol
 
-npm install    # root workspace (if configured)
+# Frontend
 cd frontend && npm install
+cp .env.local.example .env.local  # fill in your values
+
+# Keeper
+cd ../keeper && npm install
+cp .env.example .env  # fill in your values
 ```
 
-### 2. Configure environment
-
-**Frontend:**
+### Run locally
 ```bash
-cp frontend/.env.local.example frontend/.env.local
-# Fill in your Stellar keypairs and contract addresses
+# Terminal 1 — Frontend
+cd frontend && npm run dev  # http://localhost:3000
+
+# Terminal 2 — API + Keeper
+cd keeper && npm run dev    # http://localhost:3001
 ```
 
-**Keeper:**
-```bash
-cp keeper/.env.example keeper/.env
-# Fill in Stellar RPC, Supabase credentials, keeper keypair
-```
+## Security
 
-### 3. Deploy contracts to testnet
-```bash
-cd contracts
-stellar keys generate raws-deployer --network testnet
-stellar keys fund raws-deployer --network testnet
-cargo build --target wasm32-unknown-unknown --release
-stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/raws_vault.wasm \
-  --source raws-deployer \
-  --network testnet
-```
+- **Keeper key isolation:** Keeper keypair is allowlisted at contract level to call
+  `harvest()` only. Cannot withdraw user funds even if compromised.
+- **Atomic revert:** All C2C calls have `min_out` slippage guards. Any failure
+  reverts the entire transaction. Funds never at partial-execution risk.
+- **No governance token:** No compliance surface. No emission schedule to manage.
+- **Open source:** All contract code auditable on GitHub.
 
-### 4. Run locally
+## Built for Stellar Builders Program 2026
 
-**Frontend:**
-```bash
-cd frontend && npm run dev
-```
-
-**Keeper (requires .env with valid credentials):**
-```bash
-cd keeper && npm run dev
-```
-
-## Build Roadmap
-
-| Step | Milestone | Status |
-|------|-----------|--------|
-| 1 | Project Setup & Environment | Done |
-| 2 | Core Vault Contract (20 tests) | Done |
-| 3 | Single-Asset Deposit Router (11 tests) | Done |
-| 4 | Native StableSwap AMM (12 tests) | Done |
-| 5 | Off-Chain Keeper & IL Watchdog | Done (21 tests) |
-| 6 | Backend API | |
-| 7 | Frontend Wallet & Deposit UI | |
-| 8 | Frontend Dashboard & Alerts | |
-| 9 | Testing & Polish | |
-| 10 | Mainnet Deploy & Submission | |
-
-## Smart Contracts
-
-| Contract | Testnet Address |
-|----------|----------------|
-| Vault | CC4LKQ5BIVLIBC6ZCJIZPBVLD7JRXQKGT7IL6UM7QDHBDTVGYNBV6IQ3 |
-| AMM (StableSwap) | CDTNHVUFYEZXZX3UNFF7C3SGOUBOEQA2HMQJ6YLYUPEXH35Y6VGT7IKR |
-
-## Testnet Token Addresses
-
-| Token | Address |
-|-------|---------|
-| USDC | CBT5F2FSLHR4JERVHBIIQXQLONE4HZ5E4KC7W7NTR5NGPSH6KQ4AX4Y7 |
-| EURC | (add after testnet deployment) |
-| XLM (wrapped) | CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC |
-
-## Soroswap Integration
-
-| Contract | Testnet Address |
-|----------|----------------|
-| Soroswap Router | CDGHOS7DDZ7DB24J7TMFDEAIR7LS7GLMT5J5KEZMUF6MSX5BFHCXQIB3 |
-
-## RAW$ StableSwap AMM
-
-Phase 4 introduces RAW$'s own on-chain StableSwap AMM — a two-token pool (USDC/EURC) using the Curve StableSwap invariant.
-
-### Key Parameters
-| Parameter | Value |
-|-----------|-------|
-| Amplification (A) | 100 |
-| Swap Fee | 0.04% (4 bps) |
-| Tokens | USDC / EURC (both 6 decimals) |
-| Math | All i128, Newton's method |
-
-### Contract Functions
-| Function | Description |
-|----------|-------------|
-| `init()` | Deploy pool with mandatory initial deposit (inflation attack guard) |
-| `exchange()` | Swap token A ↔ B with slippage guard |
-| `add_liquidity()` | Deposit both tokens, receive LP shares |
-| `remove_liquidity()` | Burn LP shares, receive proportional tokens |
-| `get_balances()` | Read pool reserves |
-| `get_total_shares()` | Read total LP supply |
-| `get_user_shares()` | Read user LP balance |
-
-### Test Coverage (12 tests)
-- `get_d()` — balanced pool, empty pool, invariant preservation
-- `get_y()` — output never exceeds balance
-- Slippage near peg (A=100 keeps <0.1%)
-- Depeg scenarios — graceful degradation, pool never drains
-- `add_liquidity()` — proportional share minting
-- `remove_liquidity()` — proportional withdrawal
-- Fee accrual — LPs earn from swap fees
-- Invalid token panic, ANN==400 constant check
-
-## RAW$ Keeper (Phase 5)
-
-The off-chain keeper is a Node.js service deployed on Render that monitors the vault and AMM pools.
-
-### Scheduled Jobs
-
-| Job | Interval | Description |
-|-----|----------|-------------|
-| `watchdog` | Every 30 min | Polls Horizon for pool reserves & fees, computes IL, classifies pool health (GREEN/YELLOW/RED/RED_CRITICAL), upserts to `pool_snapshots` |
-| `harvester` | Every 4 hours | Queries Aquarius for pending rewards, calls vault `harvest()` via the authorized keeper keypair, logs to `compound_log` |
-
-### IL Classifier (Deterministic — No AI)
-
-- **GREEN** — Net Effective Yield (NEY) > 0 (fees > IL)
-- **YELLOW** — NEY between 0 and threshold (-10%)
-- **RED** — NEY below threshold
-- **RED_CRITICAL** — 3 consecutive RED periods → triggers `SMART_EXIT` alert
-
-### Key Design Rules
-
-1. **Off-chain observes, on-chain executes** — keeper never holds user funds
-2. **Keeper keypair is restricted** — only authorized for `harvest()` on-chain
-3. **Idempotent** — all cron jobs safe to run twice without double-effects
-4. **No partial trust in DB** — Supabase is a performance cache; keeper logs & retries if down
-
-## Built for Stellar Buildathon 2026
-
-RAW$ · Real yield or nothing.
+RAW$ — Real yield or nothing.

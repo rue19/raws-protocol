@@ -2,11 +2,7 @@
 
 ## Open Bugs
 
-| ID | Severity | Component | Description | Steps | Status |
-|----|----------|-----------|-------------|-------|--------|
-| BUG-005 | P2 | API Rate Limit | Rate limiter configured (100/min) but not enforcing in production — all 105 requests returned 200 | Fire 105 rapid requests to /api/v1/pools | OPEN — Render proxy likely strips req.ip |
-
-_(1 P2 bug open — does not block Phase 10)_
+_(All known bugs fixed)_
 
 ## Fixed Bugs
 
@@ -16,6 +12,7 @@ _(1 P2 bug open — does not block Phase 10)_
 | BUG-002 | P1 | Frontend | Prerender crash — `Invalid URL` from stellar rpc.Server | Lazy `getSorobanServer()` + env var guard | Phase 8 hotfix |
 | BUG-003 | P1 | Frontend | `npm ci` fails — lock file out of sync with package.json | Regenerated lock file + `vercel.json` using `npm install` | Phase 8 hotfix |
 | BUG-004 | P2 | Frontend | Vercel build uses Node 20, stellar-sdk v16 requires Node 22 | Added `.nvmrc` (22) + `engines: { node: ">=22" }` | Phase 8 hotfix |
+| BUG-005 | P2 | API Rate Limit | Rate limiter configured (100/min) but not enforcing in production — Render proxy stripped req.ip | Added `trustProxy: true` to Fastify server options | Phase 9 |
 | BUG-006 | P1 | API Alerts | Alert dismiss endpoint used PATCH but frontend sends POST | Changed `fastify.patch` to `fastify.post` in alerts.ts | Phase 9 |
 
 ## Test Results Summary
