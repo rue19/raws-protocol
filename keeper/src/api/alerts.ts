@@ -98,7 +98,7 @@ export async function alertsRoutes(fastify: FastifyInstance): Promise<void> {
    *
    * Mark a single alert as read. Called by frontend when user dismisses alert.
    */
-  fastify.patch<{ Params: { id: string } }>(
+  fastify.post<{ Params: { id: string } }>(
     '/alerts/:id/read',
     async (request, reply) => {
       const { id } = request.params;
