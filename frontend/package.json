@@ -28,6 +28,9 @@
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.14"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
