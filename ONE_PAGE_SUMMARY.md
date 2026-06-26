@@ -78,8 +78,10 @@ Soroban Smart Contracts (Stellar Testnet → Mainnet)
 | Keeper TypeScript | 0 errors |
 | Rust Vault Tests | 31/31 passing |
 | Rust AMM Tests | 12/12 passing |
-| Rate Limit | Enforced at 100 requests |
-| WebSocket Validation | Invalid + SQL injection rejected |
+| On-chain Security | 4/4 passing (keeper isolation, cross-user, auth) |
+| IL Watchdog | 3/3 passing (alert fires at RED×3, not at RED×2, dismiss works) |
+| Multi-user Isolation | 2/2 passing (positions + alerts scoped per user) |
+| WebSocket Validation | 2/2 passing (invalid address + SQL injection rejected) |
 | Brand Consistency | All hex values correct, zero Tailwind defaults |
 
 ---

@@ -14,6 +14,7 @@ export async function buildServer(): Promise<FastifyInstance> {
         ? { target: 'pino-pretty', options: { colorize: true } }
         : undefined,
     },
+    trustProxy: true,
   });
 
   // ── Security plugins ──────────────────────────────────────────────────────
