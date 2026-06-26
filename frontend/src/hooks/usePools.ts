@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import type { Pool } from '@/types'
 
 export function usePools() {
@@ -9,6 +9,14 @@ export function usePools() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!url || !key) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabase()
+
     const fetchPools = async () => {
       const { data, error } = await supabase
         .from('pool_snapshots')
