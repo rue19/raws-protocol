@@ -22,8 +22,8 @@ export function LandingHeader() {
         </Link>
         <span className="hidden lg:inline text-white/30 cursor-default">analytics</span>
 
-        <Link href="/" className="font-serif text-xl sm:text-2xl text-white px-1 sm:px-2">
-          RAW<span className="text-indigo">$</span>
+        <Link href="/" className="flex items-center px-1 sm:px-2">
+          <img src="/logo.svg" alt="RAW$" className="h-6 sm:h-7 w-auto filter brightness-0 invert" />
         </Link>
 
         <span className="hidden lg:inline text-white/30 cursor-default">docs</span>

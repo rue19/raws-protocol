@@ -7,8 +7,8 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 bg-noir/95 backdrop-blur-sm border-b border-cotton/8">
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-baseline gap-2">
-            <span className="text-2xl font-serif text-cherry font-bold">RAW$</span>
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/logo.svg" alt="RAW$" className="h-8 w-auto filter brightness-0 invert" />
             <span className="text-dim text-xs font-mono">· Stellar Testnet</span>
           </Link>
           <div className="hidden sm:flex items-center gap-4">
