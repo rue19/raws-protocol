@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { ArrowRight, Orbit, Droplet, RefreshCw, LineChart } from 'lucide-react';
 import { Component as BloimBackground } from '@/components/ui/bloim-animation-background';
 import { LandingHeader } from './LandingHeader';
-import { LandingFooter } from './LandingFooter';
 
 const features = [
   {
@@ -77,8 +76,6 @@ export function Hero() {
           </div>
         </div>
       </div>
-
-      <LandingFooter />
     </section>
   );
 }

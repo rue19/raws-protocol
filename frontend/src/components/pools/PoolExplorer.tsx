@@ -47,8 +47,8 @@ export function PoolExplorer() {
         </div>
       )}
 
-      <div className="flex items-center gap-6 mb-6 text-sm">
-        <div className="flex gap-4">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-6 text-sm">
+        <div className="flex flex-wrap gap-4">
           {(['all', 'real_yield', 'safe_mode'] as FilterType[]).map((f) => (
             <label key={f} className="flex items-center gap-1.5 text-dim hover:text-cotton cursor-pointer">
               <input
@@ -62,7 +62,7 @@ export function PoolExplorer() {
             </label>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2 text-dim">
+        <div className="flex items-center gap-2 text-dim sm:ml-auto">
           <span>Sort by:</span>
           <select
             value={sortBy}
