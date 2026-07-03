@@ -26,6 +26,15 @@
   /* ── Spacing ───────────────────────────────────────────── */
   --radius-card: 2px;
   --radius-btn:  2px;
+
+  /* ── Landing page palette (deep navy / electric blue) ────── */
+  --color-abyss:       #05070f;
+  --color-abyss2:       #070b18;
+  --color-indigo:       #3d4eff;
+  --color-indigo-dim:   #2f3ecc;
+  --color-glow:         #2a3fd6;
+  --color-periwinkle:   #93a3ff;
+  --color-slate:        #97a1c2;
 }
 
 /* ── Legacy CSS vars for components using var() ─────────── */
@@ -46,27 +55,29 @@
 /* Class-based dark mode — RAW$ is always dark */
 @variant dark (&:where(.dark, .dark *));
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-html {
-  color-scheme: dark;
-}
+  html {
+    color-scheme: dark;
+  }
 
-body {
-  background-color: #0D0B0B;
-  color: #EDEBDD;
-  font-family: 'DM Sans', system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-}
+  body {
+    background-color: #0D0B0B;
+    color: #EDEBDD;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Playfair Display', Georgia, serif;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────── */

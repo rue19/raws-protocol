@@ -19,7 +19,7 @@ export function Navbar() {
               Dashboard
             </Link>
             <Link
-              href="/"
+              href="/pools"
               className="font-mono text-xs text-dim hover:text-cotton transition-colors"
             >
               Pools

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans, IBM_Plex_Mono } from "next/font/google";
 import { WalletProvider } from "@/components/wallet/WalletProvider";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { SiteChrome } from "@/components/layout/SiteChrome";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
@@ -38,9 +37,7 @@ export default function RootLayout({
     <html lang="en" className={`${playfair.variable} ${dmSans.variable} ${ibmPlexMono.variable}`}>
       <body className="min-h-screen flex flex-col bg-noir2 text-cotton">
         <WalletProvider>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <SiteChrome>{children}</SiteChrome>
         </WalletProvider>
         <Toaster
           position="top-right"
