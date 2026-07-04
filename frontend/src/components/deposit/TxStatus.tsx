@@ -1,7 +1,7 @@
 'use client'
 import { Spinner } from '@/components/ui/Spinner'
 import { useTxPoller } from '@/hooks/useTxPoller'
-import { formatAddress } from '@/lib/format'
+import { formatAddress } from '@/lib/utils'
 
 interface TxStatusProps {
   phase: 'POLLING' | 'CONFIRMED' | 'ERROR'

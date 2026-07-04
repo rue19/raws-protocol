@@ -1,5 +1,5 @@
 import { getPoolReserves, getFeeRevenueSince } from "../services/horizon";
-import { getActivePoolIds } from "../services/supabase";
+import { getActivePoolIds } from "../services/db";
 import { logger } from "../lib/logger";
 import type { PoolSnapshot } from "../types";
 

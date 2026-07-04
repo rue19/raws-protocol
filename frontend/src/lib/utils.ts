@@ -6,6 +6,8 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
+// ── Formatting helpers ───────────────────────────────────────────────────────
+
 /** Format a number as USD */
 export function formatUSD(value: number | null | undefined, decimals = 2): string {
   if (value === null || value === undefined) return '—';
@@ -30,6 +32,30 @@ export function shortAddress(address: string): string {
   return `${address.slice(0, 5)}...${address.slice(-4)}`;
 }
 
+/** Alias used by deposit components */
+export const formatAddress = shortAddress;
+
+/** Format a plain number with commas */
+export function formatAmount(amount: number, decimals = 2): string {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(amount);
+}
+
+/** Format APR with sign */
+export const formatAPR = formatPct;
+
+/** Format NEY with sign */
+export const formatNEY = formatPct;
+
+/** Format TVL as compact USD */
+export function formatTVL(tvl: number): string {
+  if (tvl >= 1_000_000) return `$${(tvl / 1_000_000).toFixed(1)}M`;
+  if (tvl >= 1_000) return `$${(tvl / 1_000).toFixed(0)}K`;
+  return `$${tvl.toFixed(0)}`;
+}
+
 /** Format a timestamp to relative time: "2h ago" */
 export function timeAgo(timestamp: string): string {
   const diff = Date.now() - new Date(timestamp).getTime();
@@ -41,24 +67,26 @@ export function timeAgo(timestamp: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+// ── Health helpers ───────────────────────────────────────────────────────────
+
 /** Return Tailwind text colour class based on health status */
 export function healthColor(status: string): string {
   switch (status) {
-    case 'GREEN':        return 'text-[#1D9E75]';
-    case 'YELLOW':       return 'text-[#BA7517]';
+    case 'GREEN':        return 'text-[#2dbe6c]';
+    case 'YELLOW':       return 'text-[#f59e0b]';
     case 'RED':
-    case 'RED_CRITICAL': return 'text-[#C0392B]';
-    default:             return 'text-[#7A6A6A]';
+    case 'RED_CRITICAL': return 'text-[#e53935]';
+    default:             return 'text-[#6b7280]';
   }
 }
 
 /** Return health dot colour for inline indicators */
 export function healthDotColor(status: string): string {
   switch (status) {
-    case 'GREEN':        return 'bg-[#1D9E75]';
-    case 'YELLOW':       return 'bg-[#BA7517]';
+    case 'GREEN':        return 'bg-[#2dbe6c]';
+    case 'YELLOW':       return 'bg-[#f59e0b]';
     case 'RED':
-    case 'RED_CRITICAL': return 'bg-[#C0392B]';
-    default:             return 'bg-[#7A6A6A]';
+    case 'RED_CRITICAL': return 'bg-[#e53935]';
+    default:             return 'bg-[#6b7280]';
   }
 }

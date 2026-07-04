@@ -9,11 +9,11 @@ const TOOLTIPS: Record<string, string> = {
 }
 
 const COLORS: Record<string, string> = {
-  GREEN: 'bg-green',
-  YELLOW: 'bg-amber',
-  RED: 'bg-red',
-  RED_CRITICAL: 'bg-red',
-  UNKNOWN: 'bg-dim',
+  GREEN: 'bg-[#2dbe6c]',
+  YELLOW: 'bg-[#f59e0b]',
+  RED: 'bg-[#e53935]',
+  RED_CRITICAL: 'bg-[#e53935]',
+  UNKNOWN: 'bg-[#6b7280]',
 }
 
 interface HealthDotProps {

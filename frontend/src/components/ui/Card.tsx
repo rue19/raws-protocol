@@ -11,9 +11,9 @@ interface CardProps {
 
 const accentMap: Record<string, string> = {
   cherry: 'border-l-2 border-l-[#810100]',
-  green:  'border-l-2 border-l-[#1D9E75]',
-  amber:  'border-l-2 border-l-[#BA7517]',
-  red:    'border-l-2 border-l-[#C0392B]',
+  green:  'border-l-2 border-l-[#2dbe6c]',
+  amber:  'border-l-2 border-l-[#f59e0b]',
+  red:    'border-l-2 border-l-[#e53935]',
   none:   '',
 };
 
@@ -22,8 +22,8 @@ export function Card({ children, className, accent = 'none', onClick }: CardProp
     <div
       onClick={onClick}
       className={cn(
-        'bg-[#1B1717] border border-[#2A2020]',
-        'rounded-sm p-4',
+        'bg-white border border-[#ddd0b3]',
+        'rounded-[10px] p-4',
         'transition-all duration-150',
         onClick && 'cursor-pointer hover:border-[#810100]',
         accentMap[accent],

@@ -6,7 +6,7 @@ import {
   getActivePositionsForPool,
   getRecentSnapshots,
   upsertPoolSnapshot,
-} from "../services/supabase";
+} from "../services/db";
 import { logger } from "../lib/logger";
 
 const RED_STREAK_TO_ALERT = parseInt(config.RED_ALERT_THRESHOLD);

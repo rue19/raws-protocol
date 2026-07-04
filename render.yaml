@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: raws-api
+    runtime: node
+    rootDir: keeper
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "3001"
+      - key: NODE_ENV
+        value: production
+      - key: STELLAR_NETWORK
+        value: testnet
+      - key: STELLAR_RPC_URL
+        sync: false
+      - key: STELLAR_HORIZON_URL
+        sync: false
+      - key: STELLAR_NETWORK_PASSPHRASE
+        value: "Test SDF Network ; September 2015"
+      - key: KEEPER_PUBLIC_KEY
+        sync: false
+      - key: KEEPER_SECRET_KEY
+        sync: false
+      - key: VAULT_CONTRACT_ID
+        sync: false
+      - key: AMM_CONTRACT_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: API_SECRET
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: "https://raws-protocol.vercel.app"
+      - key: AQUARIUS_API_URL
+        value: "https://api.aqua.network/api/v1"
+      - key: WATCHDOG_INTERVAL_MINUTES
+        value: "30"
+      - key: COMPOUND_INTERVAL_HOURS
+        value: "4"
+      - key: RED_ALERT_THRESHOLD
+        value: "3"

@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { StellarWalletsKit, Networks } from '@creit.tech/stellar-wallets-kit'
 import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils'
+import { useStore } from '@/lib/store'
 
 interface WalletContextType {
   publicKey: string | null
@@ -15,11 +16,16 @@ const WalletContext = createContext<WalletContextType | null>(null)
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [publicKey, setPublicKey] = useState<string | null>(null)
+  const setWalletAddress = useStore((s) => s.setWalletAddress)
 
   useEffect(() => {
+    const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet'
+      ? Networks.PUBLIC
+      : Networks.TESTNET
+
     StellarWalletsKit.init({
       modules: defaultModules(),
-      network: Networks.TESTNET,
+      network,
     })
 
     const saved = localStorage.getItem('raws_wallet')
@@ -27,27 +33,33 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       try {
         const { pubkey } = JSON.parse(saved)
         setPublicKey(pubkey)
+        setWalletAddress(pubkey)
       } catch {
         localStorage.removeItem('raws_wallet')
       }
     }
-  }, [])
+  }, [setWalletAddress])
+
+  const syncStore = useCallback((addr: string | null) => {
+    setPublicKey(addr)
+    setWalletAddress(addr)
+  }, [setWalletAddress])
 
   const connect = useCallback(async () => {
     try {
       const { address } = await StellarWalletsKit.authModal()
-      setPublicKey(address)
+      syncStore(address)
       localStorage.setItem('raws_wallet', JSON.stringify({ pubkey: address }))
     } catch {
       // User cancelled
     }
-  }, [])
+  }, [syncStore])
 
   const disconnect = useCallback(() => {
     StellarWalletsKit.disconnect()
-    setPublicKey(null)
+    syncStore(null)
     localStorage.removeItem('raws_wallet')
-  }, [])
+  }, [syncStore])
 
   const signXdr = useCallback(async (xdr: string): Promise<string> => {
     if (!publicKey) throw new Error('Wallet not connected')

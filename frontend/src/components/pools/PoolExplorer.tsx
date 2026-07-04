@@ -32,17 +32,17 @@ export function PoolExplorer() {
   const maxApr = Math.max(...pools.map((p) => p.total_apr), 1)
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8">
+    <div className="max-w-6xl mx-auto px-6 py-8 pt-14 md:pt-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-serif text-cotton mb-1">Pool Explorer</h1>
-        <p className="text-dim text-sm">Live NEY scores across Stellar AMM pools</p>
+        <h1 className="text-3xl font-mono font-bold text-[#0f1b2d] mb-1">Pool Explorer</h1>
+        <p className="text-[#6b7280] text-sm">Live NEY scores across Stellar AMM pools</p>
       </div>
 
       {!isConnected && (
-        <div className="mb-6 bg-cherry/8 border border-cherry/30 rounded-xl p-4 flex items-center justify-between">
+        <div className="mb-6 bg-[#810100]/10 border border-[#810100]/30 rounded-xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-cotton text-sm font-medium">Connect your wallet to deposit into any pool</p>
-            <p className="text-dim text-xs">Freighter · xBull · and more supported</p>
+            <p className="text-[#0f1b2d] text-sm font-medium">Connect your wallet to deposit into any pool</p>
+            <p className="text-[#6b7280] text-xs">Freighter · xBull · and more supported</p>
           </div>
         </div>
       )}
@@ -50,24 +50,24 @@ export function PoolExplorer() {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-6 text-sm">
         <div className="flex flex-wrap gap-4">
           {(['all', 'real_yield', 'safe_mode'] as FilterType[]).map((f) => (
-            <label key={f} className="flex items-center gap-1.5 text-dim hover:text-cotton cursor-pointer">
+            <label key={f} className="flex items-center gap-1.5 text-[#6b7280] hover:text-[#0f1b2d] cursor-pointer">
               <input
                 type="radio"
                 name="filter"
                 checked={filter === f}
                 onChange={() => setFilter(f)}
-                className="accent-cherry"
+                className="accent-[#810100]"
               />
               {f === 'all' ? 'All pools' : f === 'real_yield' ? 'Real yield only' : 'Safe Mode only'}
             </label>
           ))}
         </div>
-        <div className="flex items-center gap-2 text-dim sm:ml-auto">
+        <div className="flex items-center gap-2 text-[#6b7280] sm:ml-auto">
           <span>Sort by:</span>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortBy)}
-            className="bg-noir-2 border border-cotton/15 rounded-lg px-2 py-1 text-cotton text-sm"
+            className="bg-white border border-[#ddd0b3] rounded-lg px-2 py-1 text-[#0f1b2d] text-sm"
           >
             <option value="ney">NEY Score</option>
             <option value="apr">Total APR</option>
@@ -78,7 +78,7 @@ export function PoolExplorer() {
       </div>
 
       {error && (
-        <div className="bg-red/10 border border-red/30 rounded-xl p-4 mb-6 text-red text-sm">
+        <div className="bg-[#e53935]/10 border border-[#e53935]/30 rounded-xl p-4 mb-6 text-[#e53935] text-sm">
           {error}
         </div>
       )}
@@ -90,12 +90,12 @@ export function PoolExplorer() {
           ))}
         </div>
       ) : sorted.length === 0 ? (
-        <div className="bg-mid border border-cotton/10 rounded-xl p-8 text-center">
-          <p className="text-cotton text-lg font-serif mb-2">No pools match your filter</p>
-          <p className="text-dim text-sm mb-4">Try &quot;All pools&quot; to see everything</p>
+        <div className="bg-white border border-[#ddd0b3] rounded-xl p-8 text-center">
+          <p className="text-[#0f1b2d] text-lg font-mono font-bold mb-2">No pools match your filter</p>
+          <p className="text-[#6b7280] text-sm mb-4">Try &quot;All pools&quot; to see everything</p>
           <button
             onClick={() => setFilter('all')}
-            className="text-cherry text-sm hover:underline cursor-pointer"
+            className="text-[#810100] text-sm hover:underline cursor-pointer"
           >
             Clear filters
           </button>

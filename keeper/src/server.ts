@@ -23,7 +23,9 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   await fastify.register(cors, {
-    origin: [config.FRONTEND_URL, 'http://localhost:3000'],
+    origin: config.NODE_ENV === 'production'
+      ? [config.FRONTEND_URL]
+      : [config.FRONTEND_URL, 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -44,6 +46,34 @@ export async function buildServer(): Promise<FastifyInstance> {
       maxPayload: 1_048_576,         // 1MB max message size
       clientTracking: true,
     },
+  });
+
+  // ── Auth hook ────────────────────────────────────────────────────────────────
+  const PUBLIC_PATHS = ['/health', '/api/v1/webhook/telegram'];
+
+  fastify.addHook('preHandler', async (request, reply) => {
+    const path = request.url.split('?')[0];
+
+    // Skip auth for public paths
+    if (PUBLIC_PATHS.some((p) => path.startsWith(p))) return;
+
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Missing or malformed Authorization header',
+      });
+    }
+
+    const token = authHeader.slice(7);
+    if (token !== config.API_SECRET) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Invalid API secret',
+      });
+    }
   });
 
   // ── Health check (Render uses this to verify the instance is alive) ───────

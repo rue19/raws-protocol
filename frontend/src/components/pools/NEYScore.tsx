@@ -1,4 +1,4 @@
-import { formatNEY } from '@/lib/format'
+import { formatNEY } from '@/lib/utils'
 import type { HealthStatus } from '@/types'
 
 interface NEYScoreProps {
@@ -7,11 +7,11 @@ interface NEYScoreProps {
 }
 
 const HEALTH_COLOR: Record<string, string> = {
-  GREEN: 'text-green',
-  YELLOW: 'text-amber',
-  RED: 'text-red',
-  RED_CRITICAL: 'text-red',
-  UNKNOWN: 'text-dim',
+  GREEN: 'text-[#2dbe6c]',
+  YELLOW: 'text-[#f59e0b]',
+  RED: 'text-[#e53935]',
+  RED_CRITICAL: 'text-[#e53935]',
+  UNKNOWN: 'text-[#6b7280]',
 }
 
 export function NEYScore({ ney, health }: NEYScoreProps) {

@@ -1,7 +1,7 @@
 'use client'
 import { Wallet } from 'lucide-react'
 import { useWallet } from '@/components/wallet/WalletProvider'
-import { formatAddress } from '@/lib/format'
+import { formatAddress } from '@/lib/utils'
 
 export function LandingConnectButton() {
   const { isConnected, publicKey, connect, disconnect } = useWallet()

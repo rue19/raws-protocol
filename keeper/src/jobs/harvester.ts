@@ -1,5 +1,4 @@
-import { config } from "../config";
-import { getActivePositions, hasRecentCompoundLog, insertCompoundLog, updateCompoundLog } from "../services/supabase";
+import { getActivePositions, hasRecentCompoundLog, insertCompoundLog, updateCompoundLog } from "../services/db";
 import { getPendingRewards } from "../services/aquarius";
 import { callHarvest } from "../services/soroban";
 import { logger } from "../lib/logger";
@@ -26,14 +25,15 @@ export async function runCompoundCycle(): Promise<void> {
       const logRow = await insertCompoundLog({
         pool_id: pos.pool_id,
         user_address: pos.user_address,
-        pending_rewards: pending,
-        status: "PENDING",
-        harvest_tx_hash: "PENDING_" + crypto.randomUUID(),
+        position_id: pos.id,
+        rewards_harvested: Number(pending),
+        tx_hash: "PENDING_" + crypto.randomUUID(),
+        gas_cost_xlm: 0,
       });
 
       const txHash = await callHarvest(pos.pool_id, pos.lp_address);
 
-      await updateCompoundLog(logRow.id, { status: "SUCCESS", harvest_tx_hash: txHash });
+      await updateCompoundLog(logRow.id, { tx_hash: txHash });
       logger.info({ pool: pos.pool_id, txHash }, "harvest + reinvest complete");
     } catch (err) {
       logger.error({ pool: pos.pool_id, err }, "harvest failed for this position — continuing to next");

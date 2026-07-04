@@ -1,4 +1,4 @@
-import { formatAmount } from '@/lib/format'
+import { formatAmount } from '@/lib/utils'
 
 interface SplitPreviewProps {
   tokenA: string

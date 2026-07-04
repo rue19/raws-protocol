@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { useWallet } from './WalletProvider'
-import { formatAddress } from '@/lib/format'
+import { formatAddress } from '@/lib/utils'
 
 export function WalletBadge() {
   const { publicKey, disconnect } = useWallet()
