@@ -4,11 +4,11 @@
   "crons": [
     {
       "path": "/api/cron/watchdog",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/compound",
-      "schedule": "0 */4 * * *"
+      "schedule": "0 12 * * *"
     }
   ]
 }

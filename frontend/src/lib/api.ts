@@ -4,7 +4,10 @@ import type { PositionWithNEY, PoolWithHealth, CompoundLog, Alert } from '@/type
 const BASE = '/api/v1';
 
 function authHeaders(): Record<string, string> {
-  return { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const secret = process.env.NEXT_PUBLIC_API_SECRET;
+  if (secret) headers['Authorization'] = `Bearer ${secret}`;
+  return headers;
 }
 
 async function get<T>(path: string): Promise<T> {
