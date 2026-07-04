@@ -1,35 +1,45 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { usePools } from '@/hooks/usePools'
 import { PoolCard } from './PoolCard'
 import { useWallet } from '@/components/wallet/WalletProvider'
 import { DepositModal } from '@/components/deposit/DepositModal'
-import type { Pool } from '@/types'
+import type { PoolWithHealth } from '@/types'
 
 type FilterType = 'all' | 'real_yield' | 'safe_mode'
-type SortBy = 'ney' | 'apr' | 'tvl' | 'protocol'
+type SortBy = 'ney' | 'apy' | 'tvl' | 'protocol'
 
 export function PoolExplorer() {
-  const { pools, loading, error } = usePools()
-  const { isConnected } = useWallet()
   const [filter, setFilter] = useState<FilterType>('all')
   const [sortBy, setSortBy] = useState<SortBy>('ney')
-  const [depositPool, setDepositPool] = useState<Pool | null>(null)
+  const [depositPool, setDepositPool] = useState<PoolWithHealth | null>(null)
 
-  const filtered = pools.filter((p) => {
-    if (filter === 'real_yield') return p.emission_yield_apr === 0
-    if (filter === 'safe_mode') return p.pool_id.includes('raws')
-    return true
-  })
+  const params = useMemo(
+    () => ({
+      protocol: undefined as string | undefined,
+      safe_mode: filter === 'safe_mode' ? true : undefined,
+    }),
+    [filter]
+  )
 
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'ney') return b.ney_score - a.ney_score
-    if (sortBy === 'apr') return b.total_apr - a.total_apr
-    if (sortBy === 'tvl') return b.tvl_usd - a.tvl_usd
-    return a.protocol.localeCompare(b.protocol)
-  })
+  const { pools, loading, error } = usePools(params)
+  const { isConnected } = useWallet()
 
-  const maxApr = Math.max(...pools.map((p) => p.total_apr), 1)
+  const filtered = useMemo(() => {
+    if (filter === 'real_yield') return pools.filter((p) => p.emission_yield_apy === 0)
+    return pools
+  }, [pools, filter])
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'ney') return (b.ney_score ?? -Infinity) - (a.ney_score ?? -Infinity)
+      if (sortBy === 'apy') return b.total_apy - a.total_apy
+      if (sortBy === 'tvl') return (b.tvl_usd ?? 0) - (a.tvl_usd ?? 0)
+      return a.protocol.localeCompare(b.protocol)
+    })
+  }, [filtered, sortBy])
+
+  const maxApr = useMemo(() => Math.max(...pools.map((p) => p.total_apy), 1), [pools])
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 pt-14 md:pt-8">
@@ -70,7 +80,7 @@ export function PoolExplorer() {
             className="bg-white border border-[#ddd0b3] rounded-lg px-2 py-1 text-[#0f1b2d] text-sm"
           >
             <option value="ney">NEY Score</option>
-            <option value="apr">Total APR</option>
+            <option value="apy">Total APY</option>
             <option value="tvl">TVL</option>
             <option value="protocol">Protocol</option>
           </select>

@@ -4,13 +4,14 @@ import { TrackedPool, PoolSnapshot, PoolWithHealth } from '../types/index';
 const AQUARIUS_API = process.env.AQUARIUS_API_URL ?? 'https://api.aqua.network/api/v1';
 
 /**
- * Calculate impermanent loss as a decimal.
- * Standard IL formula: IL = 2√k/(1+k) - 1  where k = current_ratio / entry_ratio
+ * Calculate impermanent loss as a signed decimal.
+ * Standard IL formula: IL = (2√k / (1+k)) - 1  where k = currentRatio / entryRatio
+ * Returns a negative number (e.g. -0.05 = 5% IL loss)
  */
 export function calcIL(entryRatio: number, currentRatio: number): number {
-  if (entryRatio === 0) return 0;
-  const k = Math.sqrt(currentRatio / entryRatio);
-  return (2 * k) / (1 + k) - 1;
+  if (entryRatio <= 0 || currentRatio <= 0) return 0;
+  const k = currentRatio / entryRatio;
+  return (2 * Math.sqrt(k)) / (1 + k) - 1;
 }
 
 /**

@@ -1,6 +1,7 @@
-import { rpc, Networks } from '@stellar/stellar-sdk'
+import { rpc, Networks, Horizon } from '@stellar/stellar-sdk'
 
 let _server: rpc.Server | null = null
+let _horizon: Horizon.Server | null = null
 
 export function getSorobanServer(): rpc.Server {
   if (_server) return _server
@@ -8,6 +9,13 @@ export function getSorobanServer(): rpc.Server {
   if (!url) throw new Error('NEXT_PUBLIC_STELLAR_RPC_URL missing')
   _server = new rpc.Server(url, { allowHttp: false })
   return _server
+}
+
+export function getHorizonServer(): Horizon.Server {
+  if (_horizon) return _horizon
+  const url = process.env.NEXT_PUBLIC_HORIZON_URL ?? 'https://horizon-testnet.stellar.org'
+  _horizon = new Horizon.Server(url)
+  return _horizon
 }
 
 /** @deprecated Use getSorobanServer() instead */

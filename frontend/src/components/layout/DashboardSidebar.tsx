@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
+import { getHorizonServer } from '@/lib/stellar';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: 'grid' },
@@ -20,6 +21,23 @@ function SidebarContent({ pathname, walletAddress, unreadCount }: {
   walletAddress: string | null;
   unreadCount: number;
 }) {
+  const [balance, setBalance] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!walletAddress) { setBalance(null); return; }
+    let cancelled = false;
+    getHorizonServer()
+      .accounts()
+      .accountId(walletAddress)
+      .call()
+      .then((account) => {
+        if (cancelled) return;
+        const xlm = account.balances.find((b) => b.asset_type === 'native');
+        setBalance(xlm ? parseFloat(xlm.balance).toFixed(2) : '0.00');
+      })
+      .catch(() => { if (!cancelled) setBalance('—'); });
+    return () => { cancelled = true; };
+  }, [walletAddress]);
   return (
     <>
       {/* Logo */}
@@ -78,8 +96,10 @@ function SidebarContent({ pathname, walletAddress, unreadCount }: {
               {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
             </div>
             <div className="text-[10px] font-semibold tracking-[0.1em] text-[rgba(245,230,200,0.4)] mb-[3px]">Balance</div>
-            <div className="font-mono text-[15px] font-bold text-[#F5E6C8] leading-tight mb-0.5">Loading...</div>
-            <div className="text-[11px] text-[rgba(245,230,200,0.45)] mb-3">--</div>
+            <div className="font-mono text-[15px] font-bold text-[#F5E6C8] leading-tight mb-0.5">
+              {balance !== null ? `${balance} XLM` : 'Loading...'}
+            </div>
+            <div className="text-[11px] text-[rgba(245,230,200,0.45)] mb-3">Stellar</div>
           </>
         ) : (
           <div className="font-mono text-xs text-[rgba(245,230,200,0.5)] mb-2">
@@ -98,7 +118,7 @@ function SidebarContent({ pathname, walletAddress, unreadCount }: {
         </div>
         <div>
           <div className="text-[12px] text-[rgba(245,230,200,0.5)] mb-0.5">Need help?</div>
-          <a href="#" className="text-[11px] font-semibold text-[rgba(245,230,200,0.7)] no-underline hover:text-[#F5E6C8] transition-colors">View Docs →</a>
+          <span className="text-[11px] font-semibold text-[rgba(245,230,200,0.7)] transition-colors">View Docs →</span>
         </div>
       </div>
 

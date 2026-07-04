@@ -1,7 +1,7 @@
 'use client';
 
 import { Skeleton } from '@/components/ui/Skeleton';
-import { formatUSD, timeAgo } from '@/lib/utils';
+import { formatUSD, timeAgo, explorerBase } from '@/lib/utils';
 import type { CompoundLog as CompoundLogType } from '@/types';
 
 interface CompoundLogProps {
@@ -35,9 +35,9 @@ export function CompoundLog({ logs, isLoading }: CompoundLogProps) {
     <div className="bg-white border-[1.5px] border-[#ddd0b3] rounded-[10px] p-[18px]">
       <div className="flex items-center justify-between mb-3.5">
         <h2 className="font-mono text-[15px] font-bold text-[#0f1b2d]">Recent Compound Activity</h2>
-        <a href="#" className="text-[12px] font-semibold text-[#0f1b2d] opacity-65 no-underline hover:opacity-100 transition-opacity">
+        <button className="text-[12px] font-semibold text-[#0f1b2d] opacity-65 no-underline hover:opacity-100 transition-opacity bg-transparent border-none cursor-pointer p-0">
           View All
-        </a>
+        </button>
       </div>
 
       {logs.length === 0 ? (
@@ -60,7 +60,7 @@ export function CompoundLog({ logs, isLoading }: CompoundLogProps) {
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
                 <span className="text-[10px] text-[#9ca3af]">{timeAgo(log.compounded_at)}</span>
                 <a
-                  href={`https://stellar.expert/explorer/testnet/tx/${log.tx_hash}`}
+                  href={`${explorerBase()}/tx/${log.tx_hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#9ca3af] hover:text-[#0f1b2d] transition-colors"
@@ -77,9 +77,9 @@ export function CompoundLog({ logs, isLoading }: CompoundLogProps) {
         </div>
       )}
 
-      <a href="#" className="text-[12px] font-semibold text-[#0f1b2d] opacity-65 no-underline hover:opacity-100 transition-opacity inline-block mt-1.5">
+      <button className="text-[12px] font-semibold text-[#0f1b2d] opacity-65 no-underline hover:opacity-100 transition-opacity inline-block mt-1.5 bg-transparent border-none cursor-pointer p-0">
         View Full Log →
-      </a>
+      </button>
     </div>
   );
 }

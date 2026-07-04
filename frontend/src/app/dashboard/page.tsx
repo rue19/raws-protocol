@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [compoundLogs, setCompoundLogs] = useState<CompoundLogType[]>([]);
   const [totalRewards, setTotalRewards] = useState(0);
   const [isLoadingLogs, setLoadingLogs] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
 
   usePositionsSocket(walletAddress);
 
@@ -47,6 +48,7 @@ export default function DashboardPage() {
       setCompoundLogs(logData.logs);
       setTotalRewards(logData.total_rewards_usd);
       setAlerts(alertData.alerts);
+      setLastRefresh(new Date());
     } catch (err) {
       console.error('Dashboard load error:', err);
     } finally {
@@ -105,7 +107,7 @@ export default function DashboardPage() {
       <SmartExitModal />
 
       <div className="px-4 sm:px-7 pt-14 md:pt-0 pb-7">
-        <DashboardTopbar />
+        <DashboardTopbar lastRefresh={lastRefresh} />
 
         {/* Stat Cards */}
         {isLoadingPositions ? (
@@ -141,6 +143,9 @@ export default function DashboardPage() {
               <PositionsTable
                 positions={positions}
                 pools={pools}
+                onExit={(positionId, suggestedPool, projectedNey) => {
+                  useStore.getState().openSmartExit({ positionId, suggestedPool, projectedNey });
+                }}
               />
             )}
 
@@ -211,10 +216,10 @@ export default function DashboardPage() {
         {/* Footer */}
         <footer className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 pt-3.5 border-t border-[#e5d9bf]">
           <nav className="flex gap-5">
-            <a href="#" className="text-[12px] font-medium text-[#6b7280] no-underline hover:text-[#0f1b2d] transition-colors">Docs</a>
-            <a href="#" className="text-[12px] font-medium text-[#6b7280] no-underline hover:text-[#0f1b2d] transition-colors">About</a>
-            <a href="#" className="text-[12px] font-medium text-[#6b7280] no-underline hover:text-[#0f1b2d] transition-colors">Terms</a>
-            <a href="#" className="text-[12px] font-medium text-[#6b7280] no-underline hover:text-[#0f1b2d] transition-colors">Privacy</a>
+            <span className="text-[12px] font-medium text-[#6b7280]">Docs</span>
+            <span className="text-[12px] font-medium text-[#6b7280]">About</span>
+            <span className="text-[12px] font-medium text-[#6b7280]">Terms</span>
+            <span className="text-[12px] font-medium text-[#6b7280]">Privacy</span>
           </nav>
           <div className="flex items-center gap-3.5">
             <span className="flex items-center gap-1 text-[12px] font-semibold text-[#6b7280] border-l border-[#ddd0b3] pl-3.5">

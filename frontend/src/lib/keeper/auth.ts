@@ -4,7 +4,9 @@ export function verifyAuth(request: NextRequest): NextResponse | null {
   const authHeader = request.headers.get('authorization');
   const secret = process.env.API_SECRET;
 
-  if (!secret) return null; // no auth configured — allow
+  if (!secret) {
+    return NextResponse.json({ error: 'Unauthorized', message: 'Server misconfigured — API_SECRET not set' }, { status: 401 });
+  }
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json({ error: 'Unauthorized', message: 'Missing Authorization header' }, { status: 401 });

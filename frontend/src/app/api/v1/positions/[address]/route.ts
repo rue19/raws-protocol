@@ -3,12 +3,19 @@ import { verifyAuth } from '@/lib/keeper/auth';
 import { db } from '@/lib/keeper/db';
 import { calcIL } from '@/lib/keeper/poolService';
 import { getRecentSnapshots } from '@/lib/keeper/poolService';
-import type { Position, PositionWithNEY } from '@/lib/keeper/types';
+import { ratelimit } from '@/lib/ratelimit';
+import type { Position, PositionWithNEY } from '@/types';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ address: string }> }
 ) {
+  const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1';
+  const { success } = await ratelimit.limit(ip);
+  if (!success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   const authError = verifyAuth(request);
   if (authError) return authError;
 

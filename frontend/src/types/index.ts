@@ -1,4 +1,4 @@
-// ── Phase 8 Dashboard Types ──────────────────────────────────────────────────
+// ── Canonical Type Definitions ────────────────────────────────────────────────
 
 export type HealthStatus = 'GREEN' | 'YELLOW' | 'RED' | 'RED_CRITICAL' | 'UNKNOWN';
 
@@ -14,6 +14,8 @@ export interface Position {
   entry_timestamp:   string;
   is_active:         boolean;
   tx_hash:           string | null;
+  created_at:        string;
+  updated_at:        string;
 }
 
 export interface PositionWithNEY extends Position {
@@ -21,29 +23,39 @@ export interface PositionWithNEY extends Position {
   il_percent:         number;
   fee_earned_usd:     number | null;
   ney_score:          number | null;
-  health_status:      HealthStatus;
+  health_status:      string;
   compound_count:     number;
   last_compounded_at: string | null;
+}
+
+export interface TrackedPool {
+  id:               string;
+  pool_id:          string;
+  protocol:         string;
+  token_a_code:     string;
+  token_b_code:     string;
+  token_a_issuer:   string | null;
+  token_b_issuer:   string | null;
+  contract_address: string | null;
+  is_safe_mode:     boolean;
+  is_active:        boolean;
 }
 
 export interface PoolSnapshot {
   id:                 string;
   pool_id:            string;
+  pool_protocol:      string;
+  reserve_a:          number;
+  reserve_b:          number;
   price_ratio:        number;
   fee_revenue_period: number;
+  total_tvl_usd:      number | null;
   health_status:      string;
   ney_score:          number | null;
-  total_tvl_usd:      number | null;
   captured_at:        string;
 }
 
-export interface PoolWithHealth {
-  id:                 string;
-  pool_id:            string;
-  protocol:           string;
-  token_a_code:       string;
-  token_b_code:       string;
-  is_safe_mode:       boolean;
+export interface PoolWithHealth extends TrackedPool {
   latest_snapshot:    PoolSnapshot | null;
   ney_score:          number | null;
   health_status:      HealthStatus;
@@ -57,6 +69,7 @@ export interface PoolWithHealth {
 export interface CompoundLog {
   id:                string;
   position_id:       string;
+  user_address:      string;
   pool_id:           string;
   rewards_harvested: number;
   rewards_usd_value: number | null;
@@ -77,25 +90,11 @@ export interface Alert {
   suggested_ney:     number | null;
   is_read:           boolean;
   is_actioned:       boolean;
+  telegram_sent:     boolean;
   created_at:        string;
 }
 
-// ── Phase 7 Pool Explorer / Deposit Types ────────────────────────────────────
-
-export interface Pool {
-  pool_id: string;
-  pool_name: string;
-  protocol: string;
-  ney_score: number;
-  health_status: HealthStatus;
-  real_yield_apr: number;
-  emission_yield_apr: number;
-  total_apr: number;
-  reserve_a: number;
-  reserve_b: number;
-  tvl_usd: number;
-  snapshot_at: string;
-}
+// ── Deposit Types ────────────────────────────────────────────────────────────
 
 export type DepositPhase =
   | 'INPUTTING'

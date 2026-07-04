@@ -1,7 +1,7 @@
 'use client'
 import { Spinner } from '@/components/ui/Spinner'
 import { useTxPoller } from '@/hooks/useTxPoller'
-import { formatAddress } from '@/lib/utils'
+import { formatAddress, explorerBase } from '@/lib/utils'
 
 interface TxStatusProps {
   phase: 'POLLING' | 'CONFIRMED' | 'ERROR'
@@ -24,7 +24,7 @@ export function TxStatus({ phase, txHash, errorMessage, amount, poolName, onDepo
             <p className="text-dim text-xs">Transaction hash</p>
             <p className="font-mono text-cotton text-sm">{formatAddress(txHash)}</p>
             <a
-              href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
+              href={`${explorerBase()}/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-cherry text-xs hover:underline mt-1 inline-block"
@@ -49,7 +49,7 @@ export function TxStatus({ phase, txHash, errorMessage, amount, poolName, onDepo
         {txHash && (
           <div className="mt-3">
             <a
-              href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
+              href={`${explorerBase()}/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-cherry text-xs hover:underline"
@@ -91,7 +91,7 @@ export function TxStatus({ phase, txHash, errorMessage, amount, poolName, onDepo
         </button>
         {txHash && (
           <a
-            href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
+            href={`${explorerBase()}/tx/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
             className="px-4 py-2 text-cherry text-sm hover:underline"

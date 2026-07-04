@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/keeper/auth';
 import { db } from '@/lib/keeper/db';
-import { enrichPool } from '@/lib/keeper/poolService';
-import type { TrackedPool } from '@/lib/keeper/types';
+import { enrichPoolsBatch } from '@/lib/keeper/poolService';
+import { ratelimit } from '@/lib/ratelimit';
+import type { TrackedPool } from '@/types';
 
 let poolsCache: { data: object[]; cachedAt: number } | null = null;
 const CACHE_TTL_MS = 60_000;
 
 export async function GET(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1';
+  const { success } = await ratelimit.limit(ip);
+  if (!success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   const authError = verifyAuth(request);
   if (authError) return authError;
 
@@ -35,7 +42,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ statusCode: 500, error: 'DatabaseError', message: error.message }, { status: 500 });
   }
 
-  const enriched = await Promise.all((pools as TrackedPool[]).map(enrichPool));
+  const enriched = await enrichPoolsBatch(pools as TrackedPool[]);
 
   const filtered = minNey
     ? enriched.filter((p) => p.ney_score !== null && p.ney_score >= parseFloat(minNey))

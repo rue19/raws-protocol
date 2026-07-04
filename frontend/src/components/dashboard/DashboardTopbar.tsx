@@ -1,21 +1,14 @@
 'use client';
 
 import { useStore } from '@/lib/store';
-import { useState, useEffect } from 'react';
+import { timeAgo } from '@/lib/utils';
 
-export function DashboardTopbar() {
+interface DashboardTopbarProps {
+  lastRefresh: Date;
+}
+
+export function DashboardTopbar({ lastRefresh }: DashboardTopbarProps) {
   const { walletAddress } = useStore();
-  const [lastUpdated, setLastUpdated] = useState('12s ago');
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLastUpdated((prev) => {
-        const sec = parseInt(prev) || 12;
-        return `${sec + 1}s ago`;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <header className="flex items-center justify-between py-5 border-b border-[#e5d9bf] mb-5">
@@ -28,14 +21,7 @@ export function DashboardTopbar() {
         <div className="flex items-center gap-1.5 bg-[rgba(15,27,45,0.06)] border border-[#ddd0b3] rounded-[20px] px-3 py-1.5 text-[12px] text-[#6b7280]">
           <span className="w-[7px] h-[7px] rounded-full bg-[#2dbe6c] shadow-[0_0_0_2px_rgba(45,190,108,0.25)] animate-[pulse_2s_infinite]" />
           <span className="font-semibold text-[#0f1b2d]">Live</span>
-          <span className="text-[#9ca3af]">Updated {lastUpdated}</span>
-          <button className="bg-transparent border-none text-[#9ca3af] cursor-pointer flex items-center">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M23 4v6h-6"/>
-              <path d="M1 20v-6h6"/>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-            </svg>
-          </button>
+          <span className="text-[#9ca3af]">Updated {timeAgo(lastRefresh.toISOString())}</span>
         </div>
 
         {/* Wallet pill */}

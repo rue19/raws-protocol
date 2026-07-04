@@ -4,12 +4,12 @@ import { NEYScore } from './NEYScore'
 import { YieldBars } from './YieldBars'
 import { useWallet } from '@/components/wallet/WalletProvider'
 import { formatTVL, timeAgo } from '@/lib/utils'
-import type { Pool } from '@/types'
+import type { PoolWithHealth } from '@/types'
 
 interface PoolCardProps {
-  pool: Pool
+  pool: PoolWithHealth
   maxApr: number
-  onDeposit: (pool: Pool) => void
+  onDeposit: (pool: PoolWithHealth) => void
 }
 
 export function PoolCard({ pool, maxApr, onDeposit }: PoolCardProps) {
@@ -21,13 +21,13 @@ export function PoolCard({ pool, maxApr, onDeposit }: PoolCardProps) {
         <div className="flex items-center gap-2">
           <HealthDot status={pool.health_status} />
           <div>
-            <h3 className="text-[#0f1b2d] font-mono font-bold text-lg">{pool.pool_name}</h3>
-            <p className="text-[#6b7280] text-xs">{formatTVL(pool.tvl_usd)} TVL</p>
+            <h3 className="text-[#0f1b2d] font-mono font-bold text-lg">{pool.token_a_code}/{pool.token_b_code}</h3>
+            <p className="text-[#6b7280] text-xs">{formatTVL(pool.tvl_usd ?? 0)} TVL</p>
           </div>
         </div>
         <span
           className={`text-xs px-2 py-0.5 rounded-full ${
-            pool.protocol === 'RAW$ Native'
+            pool.protocol === 'raws_amm'
               ? 'bg-[#810100]/15 text-[#810100]'
               : 'bg-[#e5d9bf]/50 text-[#6b7280]'
           }`}
@@ -39,23 +39,23 @@ export function PoolCard({ pool, maxApr, onDeposit }: PoolCardProps) {
       <div className="flex items-center justify-between">
         <div className="flex flex-col">
           <span className="text-[#6b7280] text-xs mb-1">NEY Score</span>
-          <NEYScore ney={pool.ney_score} health={pool.health_status} />
+          <NEYScore ney={pool.ney_score ?? 0} health={pool.health_status} />
         </div>
         <div className="flex-1 mx-6">
           <YieldBars
-            realYield={pool.real_yield_apr}
-            emissionYield={pool.emission_yield_apr}
+            realYield={pool.real_yield_apy}
+            emissionYield={pool.emission_yield_apy}
             maxApr={maxApr}
           />
         </div>
         <div className="text-right">
-          <span className="text-[#6b7280] text-xs">Total APR</span>
-          <p className="font-mono text-[#0f1b2d] font-bold">{pool.total_apr.toFixed(1)}%</p>
+          <span className="text-[#6b7280] text-xs">Total APY</span>
+          <p className="font-mono text-[#0f1b2d] font-bold">{pool.total_apy.toFixed(1)}%</p>
         </div>
       </div>
 
       <div className="flex items-center justify-between pt-2 border-t border-[#e5d9bf]">
-        <span className="text-[#6b7280] text-xs">{timeAgo(pool.snapshot_at)}</span>
+        <span className="text-[#6b7280] text-xs">{timeAgo(pool.latest_snapshot?.captured_at ?? '')}</span>
         <button
           onClick={() => onDeposit(pool)}
           disabled={!isConnected}

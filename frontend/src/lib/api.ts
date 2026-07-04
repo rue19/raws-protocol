@@ -3,16 +3,11 @@ import type { PositionWithNEY, PoolWithHealth, CompoundLog, Alert } from '@/type
 // All API routes are now internal Next.js API routes
 const BASE = '/api/v1';
 
-function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const secret = process.env.NEXT_PUBLIC_API_SECRET;
-  if (secret) headers['Authorization'] = `Bearer ${secret}`;
-  return headers;
-}
+const DEFAULT_HEADERS = { 'Content-Type': 'application/json' } as const;
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: authHeaders(),
+    headers: DEFAULT_HEADERS,
     next: { revalidate: 0 },
   });
   if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
@@ -22,7 +17,7 @@ async function get<T>(path: string): Promise<T> {
 async function post<T>(path: string, body: object): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: DEFAULT_HEADERS,
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);

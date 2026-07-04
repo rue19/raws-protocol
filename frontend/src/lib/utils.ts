@@ -69,6 +69,13 @@ export function timeAgo(timestamp: string): string {
 
 // ── Health helpers ───────────────────────────────────────────────────────────
 
+/** Return the Stellar explorer base URL for the current network */
+export function explorerBase(): string {
+  return process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet'
+    ? 'https://stellar.expert/explorer/public'
+    : 'https://stellar.expert/explorer/testnet';
+}
+
 /** Return Tailwind text colour class based on health status */
 export function healthColor(status: string): string {
   switch (status) {

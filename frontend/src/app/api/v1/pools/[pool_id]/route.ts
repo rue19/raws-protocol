@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/keeper/auth';
 import { db } from '@/lib/keeper/db';
 import { enrichPool } from '@/lib/keeper/poolService';
-import type { TrackedPool } from '@/lib/keeper/types';
+import { ratelimit } from '@/lib/ratelimit';
+import type { TrackedPool } from '@/types';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ pool_id: string }> }
 ) {
+  const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1';
+  const { success } = await ratelimit.limit(ip);
+  if (!success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   const authError = verifyAuth(request);
   if (authError) return authError;
 

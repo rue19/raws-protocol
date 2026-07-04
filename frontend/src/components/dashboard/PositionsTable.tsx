@@ -16,8 +16,35 @@ const tokenColors: Record<string, string> = {
   AQUA: '#00d4ff',
 };
 
-export function PositionsTable({ positions, pools }: PositionsTableProps) {
+export function PositionsTable({ positions, pools, onExit }: PositionsTableProps) {
   const poolMap = Object.fromEntries(pools.map((p) => [p.pool_id, p]));
+
+  const downloadCsv = () => {
+    if (positions.length === 0) return;
+    const headers = ['Pool', 'Protocol', 'Value (USD)', 'IL (24H)', 'NEY', 'Real Yield', 'Status'];
+    const rows = positions.map((pos) => {
+      const pool = poolMap[pos.pool_id];
+      const tokenA = pool?.token_a_code ?? '??';
+      const tokenB = pool?.token_b_code ?? '??';
+      return [
+        `${tokenA}/${tokenB}`,
+        pos.pool_protocol,
+        pos.current_value_usd !== null ? pos.current_value_usd.toFixed(2) : '',
+        pos.il_percent.toFixed(2),
+        pos.ney_score !== null ? (pos.ney_score * 100).toFixed(2) : '',
+        pool ? pool.real_yield_apy.toFixed(2) : '',
+        pos.health_status,
+      ].join(',');
+    });
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `raws_positions_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="bg-white border-[1.5px] border-[#ddd0b3] rounded-[10px] p-[18px] pb-3.5">
@@ -119,7 +146,7 @@ export function PositionsTable({ positions, pools }: PositionsTableProps) {
             </tbody>
           </table>
           <div className="pt-2.5 mt-0.5">
-            <button className="inline-flex items-center gap-1.5 bg-transparent border-none text-[12px] text-[#6b7280] cursor-pointer font-[family-name:var(--font-sans)] hover:text-[#0f1b2d] transition-colors">
+            <button onClick={downloadCsv} className="inline-flex items-center gap-1.5 bg-transparent border-none text-[12px] text-[#6b7280] cursor-pointer font-[family-name:var(--font-sans)] hover:text-[#0f1b2d] transition-colors">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>

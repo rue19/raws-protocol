@@ -93,9 +93,9 @@ export function AlertCard({ alert }: AlertCardProps) {
 
       {!isCritical && alert.suggested_pool_id && (
         <div className="flex items-center gap-1.5 text-[12px]">
-          <a href="#" className="font-semibold text-[#0f1b2d] no-underline ml-auto">
+          <button className="font-semibold text-[#0f1b2d] no-underline ml-auto bg-transparent border-none cursor-pointer p-0 text-[12px]">
             View Details →
-          </a>
+          </button>
         </div>
       )}
     </div>

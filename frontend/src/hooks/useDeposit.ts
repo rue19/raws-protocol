@@ -11,9 +11,9 @@ import {
   rpc,
 } from '@stellar/stellar-sdk'
 import { useTxPoller } from './useTxPoller'
-import type { DepositState, Pool, TxPollResult } from '@/types'
+import type { DepositState, PoolWithHealth, TxPollResult } from '@/types'
 
-export function useDeposit(pool: Pool) {
+export function useDeposit(pool: PoolWithHealth) {
   const { publicKey, signXdr } = useWallet()
   const [state, setState] = useState<DepositState>({
     phase: 'INPUTTING',

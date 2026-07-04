@@ -8,22 +8,46 @@ import { SplitPreview } from './SplitPreview'
 import { SlippageSettings } from './SlippageSettings'
 import { TxStatus } from './TxStatus'
 import { useDeposit } from '@/hooks/useDeposit'
-import type { Pool } from '@/types'
+import { useStore } from '@/lib/store'
+import { getHorizonServer } from '@/lib/stellar'
+import { useState, useEffect } from 'react'
+import type { PoolWithHealth } from '@/types'
 
 interface DepositModalProps {
-  pool: Pool
+  pool: PoolWithHealth
   onClose: () => void
 }
 
 export function DepositModal({ pool, onClose }: DepositModalProps) {
   const { state, setState, executeDeposit, reset } = useDeposit(pool)
+  const { walletAddress } = useStore()
+  const [balance, setBalance] = useState<number | null>(null)
 
+  useEffect(() => {
+    if (!walletAddress) return
+    let cancelled = false
+    getHorizonServer()
+      .accounts()
+      .accountId(walletAddress)
+      .call()
+      .then((account) => {
+        if (cancelled) return
+        const xlm = account.balances.find((b) => b.asset_type === 'native')
+        setBalance(xlm ? parseFloat(xlm.balance) : 0)
+      })
+      .catch(() => { if (!cancelled) setBalance(null) })
+    return () => { cancelled = true }
+  }, [walletAddress])
+
+  const poolName = `${pool.token_a_code}/${pool.token_b_code}`
   const tokens = pool.pool_id.split('/')
   const tokenA = tokens[0] || 'Token A'
   const tokenB = tokens[1] || 'Token B'
   const amount = parseFloat(state.amount) || 0
   const halfValue = amount / 2
-  const reserveRatio = pool.reserve_b > 0 ? pool.reserve_b / pool.reserve_a : 1
+  const reserveRatio = (pool.latest_snapshot?.reserve_b ?? 0) > 0
+    ? (pool.latest_snapshot?.reserve_b ?? 0) / (pool.latest_snapshot?.reserve_a ?? 1)
+    : 1
   const splitA = halfValue
   const splitB = halfValue / reserveRatio
 
@@ -41,7 +65,7 @@ export function DepositModal({ pool, onClose }: DepositModalProps) {
           txHash={state.txHash}
           errorMessage={state.errorMessage}
           amount={state.amount}
-          poolName={pool.pool_name}
+          poolName={poolName}
           onDepositAgain={reset}
           onClose={onClose}
         />
@@ -61,12 +85,12 @@ export function DepositModal({ pool, onClose }: DepositModalProps) {
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-serif text-cotton">Deposit into {pool.pool_name}</h2>
+              <h2 className="text-xl font-serif text-cotton">Deposit into {poolName}</h2>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-dim text-xs">{pool.protocol}</span>
                 <span className="text-dim">·</span>
                 <HealthDot status={pool.health_status} />
-                <NEYScore ney={pool.ney_score} health={pool.health_status} />
+                <NEYScore ney={pool.ney_score ?? 0} health={pool.health_status} />
               </div>
             </div>
             <button onClick={onClose} className="text-dim hover:text-cotton text-xl cursor-pointer">×</button>
@@ -83,6 +107,7 @@ export function DepositModal({ pool, onClose }: DepositModalProps) {
               value={state.amount}
               onChange={(val) => setState((s) => ({ ...s, amount: val }))}
               asset={state.asset}
+              balance={balance ?? undefined}
               error={errorMsg}
             />
           </div>
@@ -101,15 +126,15 @@ export function DepositModal({ pool, onClose }: DepositModalProps) {
           <div className="mb-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-dim">Estimated NEY</span>
-              <NEYScore ney={pool.ney_score} health={pool.health_status} />
+              <NEYScore ney={pool.ney_score ?? 0} health={pool.health_status} />
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-dim">Real yield</span>
-              <span className="text-green font-mono">{pool.real_yield_apr.toFixed(1)}%</span>
+              <span className="text-green font-mono">{pool.real_yield_apy.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-dim">Emission yield</span>
-              <span className="text-amber font-mono">{pool.emission_yield_apr.toFixed(1)}%</span>
+              <span className="text-amber font-mono">{pool.emission_yield_apy.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-dim">Network fee</span>

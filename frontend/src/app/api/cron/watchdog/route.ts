@@ -3,6 +3,7 @@ import { db } from '@/lib/keeper/db';
 import { getPoolReserves, getFeeRevenueSince } from '@/lib/keeper/horizon';
 import { calcIL, calcNEY, annualise } from '@/lib/keeper/poolService';
 import { insertAlert } from '@/lib/keeper/db';
+import { ratelimit } from '@/lib/ratelimit';
 
 const RED_STREAK_TO_ALERT = parseInt(process.env.RED_ALERT_THRESHOLD ?? '3');
 const YELLOW_THRESHOLD = -0.10;
@@ -13,6 +14,12 @@ function roundTo30MinBoundary(date: Date): Date {
 }
 
 export async function GET(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1';
+  const { success } = await ratelimit.limit(ip);
+  if (!success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   // Verify Vercel Cron secret
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

@@ -77,9 +77,9 @@ export function NEYDonutChart({ feeRevenueApy, ilPercent, neyScore }: NEYDonutCh
         </div>
       </div>
 
-      <a href="#" className="text-[12px] font-semibold text-[#0f1b2d] opacity-65 no-underline hover:opacity-100 transition-opacity inline-block mt-1.5">
+      <button className="text-[12px] font-semibold text-[#0f1b2d] opacity-65 no-underline hover:opacity-100 transition-opacity inline-block mt-1.5 bg-transparent border-none cursor-pointer p-0">
         View Full Breakdown →
-      </a>
+      </button>
     </div>
   );
 }
