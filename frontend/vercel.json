@@ -1,4 +1,14 @@
 {
   "buildCommand": "npx next build --webpack",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/cron/watchdog",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/compound",
+      "schedule": "0 */4 * * *"
+    }
+  ]
 }
