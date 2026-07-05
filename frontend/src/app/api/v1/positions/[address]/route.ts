@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/keeper/auth';
 import { db } from '@/lib/keeper/db';
-import { calcIL } from '@/lib/keeper/poolService';
+import { calcIL } from '@/lib/math';
 import { getRecentSnapshots } from '@/lib/keeper/poolService';
 import { ratelimit } from '@/lib/ratelimit';
 import type { Position, PositionWithNEY } from '@/types';

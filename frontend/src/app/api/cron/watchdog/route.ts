@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/keeper/db';
 import { getPoolReserves, getFeeRevenueSince } from '@/lib/keeper/horizon';
-import { calcIL, calcNEY, annualise } from '@/lib/keeper/poolService';
+import { calcIL, calcNEY, annualise } from '@/lib/math';
 import { insertAlert } from '@/lib/keeper/db';
 import { ratelimit } from '@/lib/ratelimit';
 

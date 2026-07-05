@@ -2,6 +2,7 @@
 
 import { formatUSD, formatPct, cn } from '@/lib/utils';
 import type { PositionWithNEY, PoolWithHealth } from '@/types';
+import { useStore } from '@/lib/store';
 
 interface PositionsTableProps {
   positions: PositionWithNEY[];
@@ -18,6 +19,7 @@ const tokenColors: Record<string, string> = {
 
 export function PositionsTable({ positions, pools, onExit }: PositionsTableProps) {
   const poolMap = Object.fromEntries(pools.map((p) => [p.pool_id, p]));
+  const { alerts, openSmartExit } = useStore();
 
   const downloadCsv = () => {
     if (positions.length === 0) return;
@@ -136,9 +138,39 @@ export function PositionsTable({ positions, pools, onExit }: PositionsTableProps
                       </span>
                     </td>
                     <td className="py-3 px-2">
-                      <button className="bg-transparent border-none text-[#6b7280] text-[15px] cursor-pointer px-2 py-1 rounded-[5px] hover:bg-[rgba(15,27,45,0.06)] transition-colors">
-                        •••
-                      </button>
+                      {(() => {
+                        // Find critical alert for this position
+                        const criticalAlert = alerts.find(
+                          a => a.position_id === pos.id && 
+                          a.alert_type === 'RED_CRITICAL' && 
+                          a.suggested_pool_id && 
+                          a.suggested_ney !== null
+                        );
+                        
+                        return (
+                          <button
+                            onClick={() => {
+                              if (criticalAlert) {
+                                openSmartExit({
+                                  positionId: pos.id,
+                                  suggestedPool: criticalAlert.suggested_pool_id!,
+                                  projectedNey: criticalAlert.suggested_ney!,
+                                });
+                              }
+                            }}
+                            disabled={!criticalAlert}
+                            title={criticalAlert ? "Smart Exit - Move to better pool" : "No smart exit available"}
+                            className={cn(
+                              "bg-transparent border-none text-[15px] cursor-pointer px-2 py-1 rounded-[5px] transition-colors",
+                              criticalAlert 
+                                ? "text-[#810100] hover:bg-[rgba(129,1,0,0.1)]" 
+                                : "text-[#6b7280] cursor-not-allowed"
+                            )}
+                          >
+                            •••
+                          </button>
+                        );
+                      })()}
                     </td>
                   </tr>
                 );

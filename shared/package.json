@@ -1,0 +1,21 @@
+{
+  "name": "@raws/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./il": {
+      "import": "./src/il.ts",
+      "require": "./src/il.ts"
+    },
+    "./pool-math": {
+      "import": "./src/pool-math.ts",
+      "require": "./src/pool-math.ts"
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

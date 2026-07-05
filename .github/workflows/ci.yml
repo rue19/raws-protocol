@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend — Typecheck + Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm install
+      - run: npx tsc --noEmit
+        name: TypeScript check
+      - run: npm run build
+        name: Build check
+        env:
+          NEXT_PUBLIC_STELLAR_NETWORK: testnet
+          NEXT_PUBLIC_STELLAR_RPC_URL: https://soroban-testnet.stellar.org
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          NEXT_PUBLIC_VAULT_CONTRACT_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
+          NEXT_PUBLIC_AMM_CONTRACT_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
+          NEXT_PUBLIC_API_URL: https://placeholder.onrender.com/api/v1
+          NEXT_PUBLIC_API_WS_URL: wss://placeholder.onrender.com
+
+  keeper:
+    name: Keeper — Typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: keeper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: keeper/package-lock.json
+      - run: npm install
+      - run: npx tsc --noEmit
+        name: TypeScript check
+
+  contracts:
+    name: Contracts — Rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            contracts/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.lock') }}
+      - run: cargo test
+        working-directory: contracts
+        name: Run all Rust tests

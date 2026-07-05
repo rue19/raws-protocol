@@ -1,4 +1,4 @@
-import { calcIL } from "./il";
+import { calcIL } from "./math";
 import type { PoolSnapshot, HealthStatus } from "../types";
 
 export function normalizeFeeRevenue(snapshot: PoolSnapshot): number {

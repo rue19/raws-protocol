@@ -1,22 +1,8 @@
 import { db } from './db';
 import type { TrackedPool, PoolSnapshot, PoolWithHealth } from '@/types';
+import { annualise } from '@/lib/math';
 
 const AQUARIUS_API = process.env.AQUARIUS_API_URL ?? 'https://api.aqua.network/api/v1';
-
-export function calcIL(entryRatio: number, currentRatio: number): number {
-  if (entryRatio <= 0 || currentRatio <= 0) return 0;
-  const k = currentRatio / entryRatio;
-  return (2 * Math.sqrt(k)) / (1 + k) - 1;
-}
-
-export function calcNEY(feeRevenue: number, ilDecimal: number): number {
-  return feeRevenue - Math.abs(ilDecimal);
-}
-
-export function annualise(periodRate: number, periodMinutes = 30): number {
-  const periodsPerYear = (365 * 24 * 60) / periodMinutes;
-  return periodRate * periodsPerYear;
-}
 
 export async function getRecentSnapshots(poolId: string, limit = 3): Promise<PoolSnapshot[]> {
   const { data, error } = await db

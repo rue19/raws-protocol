@@ -1,7 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { db } from '../db';
 import { Position, PositionWithNEY } from '../types/index';
-import { calcIL, calcNEY, getRecentSnapshots } from '../services/poolService';
+import { calcIL, calcNEY } from '../lib/math';
+import { getRecentSnapshots } from '../services/poolService';
 
 export async function positionsRoutes(fastify: FastifyInstance): Promise<void> {
 
