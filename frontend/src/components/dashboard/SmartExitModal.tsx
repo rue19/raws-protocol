@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { useWithdraw } from '@/hooks/useWithdraw';
 import { useDepositSingleAsset } from '@/hooks/useDepositSingleAsset';
-import { getHorizonServer } from '@/lib/stellar';
+import { getHorizonServer, getSorobanServer } from '@/lib/stellar';
+import { Contract, TransactionBuilder, Networks } from '@stellar/stellar-sdk';
 
 type SmartExitStep = 'WITHDRAW' | 'DEPOSIT' | 'COMPLETE';
 
@@ -49,19 +50,49 @@ export function SmartExitModal() {
 
     async function fetchPositionData() {
       try {
-        // Get account from Horizon to find LP token balance
         const server = getHorizonServer();
         const account = await server.accounts().accountId(position!.user_address).call();
         
-        // Find native XLM balance (or whatever token the position uses)
+        // Find native XLM balance
         const nativeBalance = account.balances.find(b => b.asset_type === 'native');
         const tokenBalance = nativeBalance ? parseFloat(nativeBalance.balance) : 0;
 
-        // For now, use placeholder addresses - in production, these would come from the position data
-        // The LP token address would be stored in the position or derivable from pool_id
+        // Try to get pool token addresses from the pool contract
+        // pool_id format: "protocol:TOKEN_A/TOKEN_B" — try to resolve the actual contract addresses
+        let lpTokenAddress = position!.pool_id;
+        let tokenAddress = 'native';
+
+        // For Soroswap pools, the pool_id is the LP contract address
+        if (position!.pool_protocol === 'soroswap') {
+          lpTokenAddress = position!.pool_id;
+        }
+
+        // For raws_amm pools, try querying the AMM contract for token addresses
+        if (position!.pool_protocol === 'raws_amm') {
+          try {
+            const ammContractId = process.env.NEXT_PUBLIC_AMM_CONTRACT_ID ?? '';
+            if (ammContractId) {
+              const passphrase = process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? Networks.TESTNET;
+              const rpcServer = getSorobanServer();
+              const ammContract = new Contract(ammContractId);
+              const op = ammContract.call('get_token_a');
+              const simTx = new TransactionBuilder(
+                await rpcServer.getAccount('GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'),
+                { fee: '0', networkPassphrase: passphrase }
+              ).addOperation(op).setTimeout(0).build();
+              const sim = await rpcServer.simulateTransaction(simTx);
+              if ('result' in sim && sim.result?.retval) {
+                tokenAddress = sim.result.retval.toString();
+              }
+            }
+          } catch {
+            // Fall back to default
+          }
+        }
+
         setPositionData({
-          lpTokenAddress: position!.pool_id.split('/')[0] || 'native', // Placeholder
-          tokenAddress: 'native', // Default to XLM
+          lpTokenAddress,
+          tokenAddress,
           dfTokenBalance: position!.df_token_shares || tokenBalance,
         });
       } catch (err) {

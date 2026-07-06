@@ -1,5 +1,6 @@
 import { config } from "../config";
 import { logger } from "../lib/logger";
+import { xdr, Address } from "@stellar/stellar-base";
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -137,9 +138,73 @@ interface ContractEventsResponse {
   };
 }
 
+/**
+ * Decode a base64 XDR ScVal and extract an i128 amount.
+ * Returns null if decoding fails or the value is not an i128.
+ */
+function decodeXdrI128(base64Xdr: string): bigint | null {
+  try {
+    const buf = Buffer.from(base64Xdr, "base64");
+    const scVal = xdr.ScVal.fromXDR(buf);
+    // i128 ScVal has a 128-bit body
+    if (scVal.switch().name === "scvI128") {
+      const parts = scVal.i128();
+      const hi = BigInt(parts.hi().toString());
+      const lo = BigInt(parts.lo().toString());
+      return (hi << BigInt(64)) | lo;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Decode a base64 XDR ScVal and extract an address.
+ * Returns null if decoding fails or the value is not an address.
+ */
+function decodeXdrAddress(base64Xdr: string): string | null {
+  try {
+    const buf = Buffer.from(base64Xdr, "base64");
+    const scVal = xdr.ScVal.fromXDR(buf);
+    if (scVal.switch().name === "scvAddress") {
+      const addr = Address.fromScAddress(scVal.address());
+      return addr.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Try to extract the user address from event data XDR.
+ * Our events emit (user: Address, lp_token: Address, amount: i128).
+ */
+function extractEventFields(dataXdr: string): { user?: string; amount?: bigint } {
+  try {
+    const buf = Buffer.from(dataXdr, "base64");
+    const scVal = xdr.ScVal.fromXDR(buf);
+    // The event data is typically a Vec of ScVals
+    if (scVal.switch().name === "scvVec") {
+      const items = scVal.vec();
+      if (items && items.length >= 2) {
+        const user = decodeXdrAddress(
+          items[0].toXDR().toString("base64")
+        );
+        const amount = decodeXdrI128(
+          items.length >= 3 ? items[2].toXDR().toString("base64") : items[1].toXDR().toString("base64")
+        );
+        return { user: user ?? undefined, amount: amount ?? undefined };
+      }
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
 function decodeEventTopic(topic: string): string {
-  // Horizon returns contract event topics as base64-encoded xdr.ScVal.
-  // For now, we match on the event topic string representations.
   return topic;
 }
 
@@ -159,8 +224,7 @@ export async function fetchContractEvents(
 
 /**
  * Rebuild a user's position from on-chain events.
- * Scans all contract events for the user's address to reconstruct
- * the current state (net deposits - withdrawals).
+ * Uses XDR decoding to extract real amounts from contract events.
  */
 export async function reconstructPositionFromEvents(
   userAddress: string
@@ -168,10 +232,7 @@ export async function reconstructPositionFromEvents(
   const vaultContractId = config.VAULT_CONTRACT_ID;
 
   try {
-    // Fetch contract events (we'll filter by user in post-processing)
     const events = await fetchContractEvents(vaultContractId);
-
-    // Track net deposits per (user, lp_token)
     const positions = new Map<string, {
       userAddress: string;
       lpTokenAddress: string;
@@ -180,27 +241,27 @@ export async function reconstructPositionFromEvents(
     }>();
 
     for (const event of events) {
-      // Horizon contract events have topics that identify the event type.
-      // We look for our custom event types: deposit, withdraw, harvest, deposit_sa
       const topicsStr = (event.topics || []).join(" ");
 
-      // Basic heuristic: if the event data contains the user address, process it
-      const dataStr = event.data || "";
-      if (!dataStr.includes(userAddress)) continue;
+      // Decode user address and amount from XDR
+      let eventUser = userAddress;
+      let amount = 0;
+      if (event.data_xdr) {
+        const fields = extractEventFields(event.data_xdr);
+        if (fields.user) eventUser = fields.user;
+        if (fields.amount !== undefined) amount = Number(fields.amount);
+      }
 
-      // Event matching by topic keywords
+      if (eventUser !== userAddress) continue;
+
       const isDeposit = topicsStr.includes("deposit") || topicsStr.includes("emit_deposit");
       const isWithdraw = topicsStr.includes("withdraw") || topicsStr.includes("emit_withdraw");
-      const isHarvest = topicsStr.includes("harvest") || topicsStr.includes("emit_harvest");
       const isDepositSa = topicsStr.includes("deposit_sa") || topicsStr.includes("emit_deposit_single_asset");
 
-      if (!isDeposit && !isWithdraw && !isHarvest && !isDepositSa) continue;
+      if (!isDeposit && !isWithdraw && !isDepositSa) continue;
+      if (amount === 0) continue;
 
-      // Extract amounts from event data (Horizon returns base64-encoded XDR).
-      // For a production implementation, this would decode XDR.
-      // For now, we log and track based on event type.
       const key = `${userAddress}:${vaultContractId}`;
-
       if (!positions.has(key)) {
         positions.set(key, {
           userAddress,
@@ -211,16 +272,13 @@ export async function reconstructPositionFromEvents(
       }
 
       const pos = positions.get(key)!;
-
       if (isDeposit || isDepositSa) {
-        // Deposits increase dfTokens and lpAmount
-        pos.dfTokenShares += 1; // simplified — in production, decode XDR amount
-        pos.lpTokenAmount += 1;
+        pos.dfTokenShares += amount;
+        pos.lpTokenAmount += amount;
       } else if (isWithdraw) {
-        pos.dfTokenShares -= 1;
-        pos.lpTokenAmount -= 1;
+        pos.dfTokenShares = Math.max(0, pos.dfTokenShares - amount);
+        pos.lpTokenAmount = Math.max(0, pos.lpTokenAmount - amount);
       }
-      // harvest doesn't change user's position
     }
 
     return Array.from(positions.values());
@@ -248,24 +306,25 @@ export async function reconstructAllPositionsFromChain(): Promise<OnChainPositio
 
     for (const event of events) {
       const topicsStr = (event.topics || []).join(" ");
-      const dataStr = event.data || "";
-
       const isDeposit = topicsStr.includes("deposit") || topicsStr.includes("emit_deposit");
       const isWithdraw = topicsStr.includes("withdraw") || topicsStr.includes("emit_withdraw");
 
       if (!isDeposit && !isWithdraw) continue;
 
-      // Extract user address from event data (simplified heuristic)
-      // In production, decode the XDR ScVal to get exact amounts
-      const userMatch = dataStr.match(/G[A-Z0-9]{55}/);
-      if (!userMatch) continue;
+      let userAddr: string | null = null;
+      let amount = 0;
+      if (event.data_xdr) {
+        const fields = extractEventFields(event.data_xdr);
+        if (fields.user) userAddr = fields.user;
+        if (fields.amount !== undefined) amount = Number(fields.amount);
+      }
 
-      const userAddress = userMatch[0];
-      const key = `${userAddress}:${vaultContractId}`;
+      if (!userAddr || amount === 0) continue;
 
+      const key = `${userAddr}:${vaultContractId}`;
       if (!positions.has(key)) {
         positions.set(key, {
-          userAddress,
+          userAddress: userAddr,
           lpTokenAddress: vaultContractId,
           dfTokenShares: 0,
           lpTokenAmount: 0,
@@ -274,11 +333,11 @@ export async function reconstructAllPositionsFromChain(): Promise<OnChainPositio
 
       const pos = positions.get(key)!;
       if (isDeposit) {
-        pos.dfTokenShares += 1;
-        pos.lpTokenAmount += 1;
+        pos.dfTokenShares += amount;
+        pos.lpTokenAmount += amount;
       } else if (isWithdraw) {
-        pos.dfTokenShares = Math.max(0, pos.dfTokenShares - 1);
-        pos.lpTokenAmount = Math.max(0, pos.lpTokenAmount - 1);
+        pos.dfTokenShares = Math.max(0, pos.dfTokenShares - amount);
+        pos.lpTokenAmount = Math.max(0, pos.lpTokenAmount - amount);
       }
     }
 

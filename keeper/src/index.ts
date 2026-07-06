@@ -6,10 +6,8 @@ import { config }                     from './config';
 import { startRealtimeSubscriptions, stopRealtimeSubscriptions } from './services/realtimeService';
 import { registerTelegramWebhook }    from './services/telegramService';
 import cron                           from 'node-cron';
-
-// Import keeper cron jobs from Phase 5
-// import { runWatchdogCycle }  from './watchdog';
-// import { runCompoundCycle }  from './harvester';
+import { runWatchdogCycle }           from './jobs/watchdog';
+import { runCompoundCycle }           from './jobs/harvester';
 
 async function main() {
   console.log(`🚀 RAW$ API starting on port ${config.PORT}`);
@@ -44,14 +42,14 @@ async function main() {
   const watchdogInterval = parseInt(config.WATCHDOG_INTERVAL_MINUTES);
   cron.schedule(`*/${watchdogInterval} * * * *`, async () => {
     console.log(`[${new Date().toISOString()}] Running IL watchdog cycle...`);
-    // await runWatchdogCycle();
+    await runWatchdogCycle();
   });
 
   // Auto-compound — every N hours
   const compoundInterval = parseInt(config.COMPOUND_INTERVAL_HOURS);
   cron.schedule(`0 */${compoundInterval} * * *`, async () => {
     console.log(`[${new Date().toISOString()}] Running compound cycle...`);
-    // await runCompoundCycle();
+    await runCompoundCycle();
   });
 
   console.log(`✅ Cron jobs scheduled (watchdog: ${watchdogInterval}min, compound: ${compoundInterval}h)`);
