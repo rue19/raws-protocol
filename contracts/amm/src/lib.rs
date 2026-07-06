@@ -262,4 +262,12 @@ impl RawsAMM {
     pub fn get_user_shares(env: Env, user: Address) -> i128 {
         storage::get_shares(&env, &user)
     }
+
+    pub fn get_token_a(env: Env) -> Address {
+        storage::get_token_a(&env)
+    }
+
+    pub fn get_token_b(env: Env) -> Address {
+        storage::get_token_b(&env)
+    }
 }

@@ -828,3 +828,235 @@ fn test_deposit_single_asset_increases_total_supply() {
     let supply_after = client.get_total_supply();
     assert!(supply_after > supply_before);
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// PHASE 4 TESTS — SafeMode deposit via RAW$ AMM
+// ═══════════════════════════════════════════════════════════════════
+
+use raws_amm::RawsAMM;
+
+fn setup_phase4() -> (
+    Env,
+    Address,
+    Address,
+    Address,
+    Address,
+    Address,
+    Address,
+) {
+    let env = Env::default();
+    env.mock_all_auths_allowing_non_root_auth();
+
+    let admin = Address::generate(&env);
+    let keeper = Address::generate(&env);
+    let user1 = Address::generate(&env);
+
+    // Register mock tokens
+    let token_a_id = env.register(mock_token_mint::MockTokenMint, ());
+    let token_b_id = env.register(mock_token_mint::MockTokenMint, ());
+
+    // Register the real RAW$ AMM contract
+    let amm_id = env.register_contract(None, RawsAMM);
+
+    // Register vault
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+
+    // Initialize vault in SafeMode
+    client.initialize(&admin, &keeper, &VaultMode::SafeMode);
+
+    // Set the AMM address on the vault
+    client.set_amm_address(&admin, &amm_id);
+
+    // Initialize the AMM with 5M of each token (admin provides initial liquidity)
+    env.as_contract(&token_a_id, || {
+        mock_token_mint::MockTokenMint::mint(env.clone(), admin.clone(), 10_000_000);
+    });
+    env.as_contract(&token_b_id, || {
+        mock_token_mint::MockTokenMint::mint(env.clone(), admin.clone(), 10_000_000);
+    });
+
+    let amm_client = raws_amm::RawsAMMClient::new(&env, &amm_id);
+    amm_client.init(
+        &token_a_id,
+        &token_b_id,
+        &5_000_000,
+        &5_000_000,
+        &admin,
+    );
+
+    // Give user1 some token_a for depositing
+    env.as_contract(&token_a_id, || {
+        mock_token_mint::MockTokenMint::mint(env.clone(), user1.clone(), 100_000);
+    });
+
+    (
+        env,
+        admin,
+        keeper,
+        user1,
+        token_a_id,
+        token_b_id,
+        amm_id,
+    )
+}
+
+#[test]
+fn test_set_get_amm_address() {
+    let (env, admin, _keeper, _user1, _token_a, _token_b, amm_id) = setup_phase4();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &Address::generate(&env), &VaultMode::SafeMode);
+
+    client.set_amm_address(&admin, &amm_id);
+    assert_eq!(client.get_amm_address(), amm_id);
+}
+
+#[test]
+#[should_panic(expected = "set_amm_address: only admin")]
+fn test_set_amm_address_unauthorized() {
+    let (env, _admin, _keeper, user1, _token_a, _token_b, amm_id) = setup_phase4();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin, &Address::generate(&env), &VaultMode::SafeMode);
+
+    client.set_amm_address(&user1, &amm_id); // user1 is not admin
+}
+
+#[test]
+#[should_panic(expected = "deposit_safe_mode: amount_in must be > 0")]
+fn test_deposit_safe_mode_zero_amount() {
+    let (env, admin, keeper, user1, token_a, _token_b, amm_id) = setup_phase4();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::SafeMode);
+    client.set_amm_address(&admin, &amm_id);
+
+    client.deposit_safe_mode(&user1, &token_a, &0, &0);
+}
+
+#[test]
+#[should_panic(expected = "VaultNotInSafeMode")]
+fn test_deposit_safe_mode_wrong_mode() {
+    let (env, admin, keeper, user1, token_a, _token_b, amm_id) = setup_phase4();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    // Initialize in YieldMode instead of SafeMode
+    client.initialize(&admin, &keeper, &VaultMode::YieldMode);
+    client.set_amm_address(&admin, &amm_id);
+
+    client.deposit_safe_mode(&user1, &token_a, &1000, &0);
+}
+
+#[test]
+fn test_deposit_safe_mode_success() {
+    let (env, admin, keeper, user1, token_a, _token_b, amm_id) = setup_phase4();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::SafeMode);
+    client.set_amm_address(&admin, &amm_id);
+
+    let df_tokens = client.deposit_safe_mode(&user1, &token_a, &10_000, &0);
+    assert!(df_tokens > 0, "Should mint dfTokens");
+
+    let (df_bal, _lp_eq) = client.get_balance(&user1);
+    assert!(df_bal > 0, "User should have dfToken balance");
+}
+
+#[test]
+fn test_deposit_safe_mode_stores_position() {
+    let (env, admin, keeper, user1, token_a, _token_b, amm_id) = setup_phase4();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::SafeMode);
+    client.set_amm_address(&admin, &amm_id);
+
+    client.deposit_safe_mode(&user1, &token_a, &10_000, &0);
+
+    let pos = env.as_contract(&vault_id, || {
+        crate::storage::get_position(&env, &amm_id)
+    });
+    assert!(pos.is_some(), "Position should be stored");
+    let pos = pos.unwrap();
+    assert!(pos.lp_tokens > 0, "LP tokens should be > 0");
+    assert_eq!(pos.pool_id, amm_id);
+}
+
+#[test]
+fn test_deposit_safe_mode_multiple_deposits_accumulate() {
+    let (env, admin, keeper, user1, token_a, _token_b, amm_id) = setup_phase4();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::SafeMode);
+    client.set_amm_address(&admin, &amm_id);
+
+    client.deposit_safe_mode(&user1, &token_a, &5_000, &0);
+    let pos1 = env.as_contract(&vault_id, || {
+        crate::storage::get_position(&env, &amm_id)
+    })
+    .unwrap();
+
+    // Give user1 more tokens for second deposit
+    env.as_contract(&token_a, || {
+        mock_token_mint::MockTokenMint::mint(env.clone(), user1.clone(), 100_000);
+    });
+
+    client.deposit_safe_mode(&user1, &token_a, &10_000, &0);
+    let pos2 = env.as_contract(&vault_id, || {
+        crate::storage::get_position(&env, &amm_id)
+    })
+    .unwrap();
+
+    assert!(
+        pos2.lp_tokens > pos1.lp_tokens,
+        "LP tokens should accumulate across deposits"
+    );
+}
+
+#[test]
+fn test_deposit_safe_mode_increases_total_supply() {
+    let (env, admin, keeper, user1, token_a, _token_b, amm_id) = setup_phase4();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::SafeMode);
+    client.set_amm_address(&admin, &amm_id);
+
+    let supply_before = client.get_total_supply();
+    client.deposit_safe_mode(&user1, &token_a, &10_000, &0);
+    let supply_after = client.get_total_supply();
+
+    assert!(
+        supply_after > supply_before,
+        "Total supply should increase"
+    );
+}
+
+#[test]
+fn test_deposit_safe_mode_balanced_lp() {
+    let (env, admin, keeper, user1, token_a, _token_b, amm_id) = setup_phase4();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::SafeMode);
+    client.set_amm_address(&admin, &amm_id);
+
+    let amm_client = raws_amm::RawsAMMClient::new(&env, &amm_id);
+    let balances_before = amm_client.get_balances();
+    let shares_before = amm_client.get_total_shares();
+
+    client.deposit_safe_mode(&user1, &token_a, &10_000, &0);
+
+    let balances_after = amm_client.get_balances();
+    let shares_after = amm_client.get_total_shares();
+
+    // AMM token_a balance should increase (user deposited token_a)
+    assert!(
+        balances_after.0 > balances_before.0,
+        "AMM token_a should increase"
+    );
+    // AMM total shares should increase (liquidity was added)
+    assert!(
+        shares_after > shares_before,
+        "AMM total shares should increase — liquidity added"
+    );
+}

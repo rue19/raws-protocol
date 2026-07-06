@@ -402,11 +402,15 @@ impl VaultContract {
 
     /// Safe Mode deposit: routes single-token deposit into RAW$ AMM via C2C.
     ///
-    /// Flow:
+    /// Atomic flow:
     /// 1. Pull token_in from caller
-    /// 2. C2C call: AMM add_liquidity(caller, desired_a, desired_b, min_shares)
-    /// 3. Mint dfTokens proportional to LP shares received
-    /// 4. Update vault positions map
+    /// 2. Query AMM for token_a and token_b addresses
+    /// 3. Split 50/50: swap half for token_pair via AMM exchange()
+    /// 4. Add liquidity to AMM with both sides balanced via add_liquidity()
+    /// 5. Mint dfTokens proportional to LP shares received
+    /// 6. Update vault positions map
+    ///
+    /// If any step fails, the entire transaction reverts — user keeps their tokens.
     pub fn deposit_safe_mode(
         env: Env,
         caller: Address,
@@ -421,27 +425,72 @@ impl VaultContract {
         assert!(mode == VaultMode::SafeMode, "VaultNotInSafeMode");
 
         let amm_address = get_amm_address(&env).expect("AMM address not configured");
+        let vault_addr = env.current_contract_address();
 
-        // Pull token_in from caller
+        // Pull token_in from caller → vault
         let token_in_client = token::Client::new(&env, &token_in);
-        token_in_client.transfer(&caller, &env.current_contract_address(), &amount_in);
+        token_in_client.transfer(&caller, &vault_addr, &amount_in);
 
-        // For now: Safe Mode requires balanced deposit (equal value both tokens)
-        // TODO (post-buildathon): add single-asset path via swap → add_liquidity
-        // Simplified: caller deposits amount_in of one token, vault needs to figure out the pair
-        // For the AMM: pass as desired_a or desired_b depending on which token
-        // Since the AMM stores token_a and token_b, we need to check which one matches
-        // C2C Call: AMM add_liquidity
-        // Since we only have one token, we deposit it all as that token's side
-        // The other side gets 0
-        let lp_shares_received: i128 = env.invoke_contract(
+        // Query AMM for its token addresses
+        let amm_token_a: Address = env.invoke_contract(
             &amm_address,
-            &Symbol::new(&env, "add_liq"),
+            &Symbol::new(&env, "get_token_a"),
+            soroban_sdk::vec![&env],
+        );
+        let amm_token_b: Address = env.invoke_contract(
+            &amm_address,
+            &Symbol::new(&env, "get_token_b"),
+            soroban_sdk::vec![&env],
+        );
+
+        // Determine which AMM token is the pair (the one that's not token_in)
+        let token_pair = if amm_token_a == token_in {
+            amm_token_b.clone()
+        } else {
+            amm_token_a.clone()
+        };
+
+        // Calculate 50/50 split ratio
+        let (amount_to_keep, amount_to_swap) =
+            calc_split_ratio(&env, &amm_address, &token_in, &token_pair, amount_in);
+
+        assert!(amount_to_swap > 0 && amount_to_keep > 0, "InvalidSplitRatio");
+        assert!(
+            amount_to_swap + amount_to_keep == amount_in,
+            "SplitAmountMismatch"
+        );
+
+        // C2C Call 1: Swap half on AMM exchange()
+        let min_swap_out = calc_min_out(amount_to_swap);
+        let swap_result: i128 = env.invoke_contract(
+            &amm_address,
+            &Symbol::new(&env, "exchange"),
             soroban_sdk::vec![
                 &env,
-                caller.clone().into_val(&env),
-                amount_in.into_val(&env),
-                0i128.into_val(&env),
+                vault_addr.clone().into_val(&env),
+                token_in.clone().into_val(&env),
+                amount_to_swap.into_val(&env),
+                min_swap_out.into_val(&env),
+            ],
+        );
+
+        assert!(swap_result >= min_swap_out, "SafeMode: SwapSlippageExceeded");
+
+        // C2C Call 2: Add liquidity with both sides balanced
+        let (desired_a, desired_b) = if token_in == amm_token_a {
+            (amount_to_keep, swap_result)
+        } else {
+            (swap_result, amount_to_keep)
+        };
+
+        let lp_shares_received: i128 = env.invoke_contract(
+            &amm_address,
+            &Symbol::new(&env, "add_liquidity"),
+            soroban_sdk::vec![
+                &env,
+                vault_addr.into_val(&env),
+                desired_a.into_val(&env),
+                desired_b.into_val(&env),
                 min_shares.into_val(&env),
             ],
         );
@@ -477,20 +526,17 @@ impl VaultContract {
             pos.map(|p| p.lp_tokens).unwrap_or(0)
         };
 
-        // Query AMM for its token_b address
-        let amm_token_b: Address = env.invoke_contract(
-            &amm_address,
-            &Symbol::new(&env, "get_token_b"),
-            soroban_sdk::vec![&env],
-        );
-
         let position = LPPosition {
             pool_id: amm_address.clone(),
             lp_tokens: existing_lp + lp_shares_received,
-            entry_price_ratio: 0,
+            entry_price_ratio: if desired_a > 0 {
+                desired_b * SCALE_FACTOR / desired_a
+            } else {
+                0
+            },
             entry_timestamp: env.ledger().timestamp(),
-            token_a: token_in.clone(),
-            token_b: amm_token_b,
+            token_a: amm_token_a,
+            token_b: amm_token_b.clone(),
         };
         set_position(&env, &amm_address, &position);
 
