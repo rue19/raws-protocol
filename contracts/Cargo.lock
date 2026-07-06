@@ -995,6 +995,7 @@ dependencies = [
 name = "raws-vault"
 version = "0.1.0"
 dependencies = [
+ "raws-amm",
  "soroban-sdk",
 ]
 
