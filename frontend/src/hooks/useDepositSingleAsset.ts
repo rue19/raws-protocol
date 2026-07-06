@@ -13,6 +13,9 @@ import {
 import { useTxPoller } from './useTxPoller'
 import type { TxPollResult } from '@/types'
 
+const SLIPPAGE_BPS = BigInt(50)
+const BPS_BASE = BigInt(10_000)
+
 export type DepositSingleAssetPhase =
   | 'INPUTTING'
   | 'SIMULATING'
@@ -79,11 +82,7 @@ export function useDepositSingleAsset({
       const amount = parseFloat(state.amount)
       const amountStroop = BigInt(Math.round(amount * 10_000_000))
       
-      // Calculate minimum LP out with slippage tolerance
-      // For now, we'll use a conservative 0% minimum since we don't know the exact rate
-      // In production, you'd query the pool for expected output first
-      const minLpOut = BigInt(0)
-
+      // Build the tx first for simulation to get expected output
       const account = await getSorobanServer().getAccount(publicKey)
       const contract = new Contract(VAULT_CONTRACT_ID)
       const operation = contract.call(
@@ -92,7 +91,7 @@ export function useDepositSingleAsset({
         nativeToScVal(tokenAddress, { type: 'address' }),
         nativeToScVal(amountStroop, { type: 'i128' }),
         nativeToScVal(targetPoolAddress, { type: 'address' }),
-        nativeToScVal(minLpOut, { type: 'i128' })
+        nativeToScVal(BigInt(0), { type: 'i128' }) // placeholder for simulation
       )
 
       const tx = new TransactionBuilder(account, {
@@ -108,9 +107,41 @@ export function useDepositSingleAsset({
         throw new Error(`Simulation failed: ${simResult.error}`)
       }
 
+      // Extract expected LP output from simulation and apply slippage
+      const simReturn = simResult.result?.retval
+      let minLpOut = BigInt(0)
+      if (simReturn) {
+        const quotedLp = BigInt(simReturn.toString())
+        minLpOut = (quotedLp * (BPS_BASE - SLIPPAGE_BPS)) / BPS_BASE
+        if (minLpOut < BigInt(0)) minLpOut = BigInt(0)
+      }
+
+      // Rebuild tx with the real minLpOut
+      const finalOperation = contract.call(
+        'deposit_single_asset',
+        nativeToScVal(publicKey, { type: 'address' }),
+        nativeToScVal(tokenAddress, { type: 'address' }),
+        nativeToScVal(amountStroop, { type: 'i128' }),
+        nativeToScVal(targetPoolAddress, { type: 'address' }),
+        nativeToScVal(minLpOut, { type: 'i128' })
+      )
+
+      const finalTx = new TransactionBuilder(account, {
+        fee: BASE_FEE,
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
+        .addOperation(finalOperation)
+        .setTimeout(TimeoutInfinite)
+        .build()
+
+      const finalSimResult = await getSorobanServer().simulateTransaction(finalTx)
+      if (rpc.Api.isSimulationError(finalSimResult)) {
+        throw new Error(`Simulation failed: ${finalSimResult.error}`)
+      }
+
       setState((s) => ({ ...s, phase: 'AWAITING_SIGNATURE' }))
 
-      const assembledTx = rpc.assembleTransaction(tx, simResult).build()
+      const assembledTx = rpc.assembleTransaction(finalTx, finalSimResult).build()
       const signedXdr = await signXdr(assembledTx.toXDR())
 
       setState((s) => ({ ...s, phase: 'SUBMITTING' }))
