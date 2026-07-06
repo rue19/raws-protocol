@@ -40,8 +40,8 @@ Soroban Smart Contracts (Stellar Mainnet)
 
 ### Single-Asset Deposit (one click)
 1. You deposit any single token (e.g. XLM)
-2. Vault calculates the optimal split ratio from pool reserves
-3. Contract-to-contract call: Vault → Soroswap router (swap half to the pair token)
+2. Vault calculates the optimal split ratio from on-chain pool reserves using the closed-form constant-product formula
+3. Contract-to-contract call: Vault → Soroswap router (swap to the pair token)
 4. Contract-to-contract call: Vault → target pool add_liquidity
 5. dfTokens minted to your address, representing your share
 6. All atomic — if any step fails, your funds are returned in full
@@ -53,8 +53,21 @@ Shown live on your dashboard. Updated every 30 minutes by the keeper watchdog.
 No competitor shows this number.
 
 ### Auto-Compound
-Every 4 hours, the keeper harvests AQUA rewards and reinvests them.
+Every 4 hours, the keeper:
+1. Claims pending AQUA emission rewards from Aquarius
+2. Swaps AQUA → LP tokens via Soroswap router
+3. Calls vault.harvest() to add the LP tokens to the pool
 At Stellar's $0.00015 tx fee, this is economically positive at any deposit size.
+
+### Degraded Mode (Chain Fallback)
+If Supabase is unavailable, the frontend falls back to reconstructing positions
+directly from on-chain contract events via Horizon. A banner alerts the user
+that some features may be limited.
+
+### Keeper Isolation
+The keeper is a privileged role restricted to calling harvest() only.
+User-facing functions (deposit, withdraw) reject keeper callers at the contract level.
+Admin-set configuration (router, AMM address) is immutable after first set.
 
 ### Pool Health Alerts
 If a pool's NEY is negative for 3 consecutive 30-minute periods (90 minutes),

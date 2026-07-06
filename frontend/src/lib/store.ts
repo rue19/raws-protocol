@@ -11,6 +11,10 @@ interface RawsStore {
   setPositions:  (p: PositionWithNEY[]) => void;
   updatePosition:(updated: PositionWithNEY) => void;
 
+  // Degraded mode (Supabase down, using chain fallback)
+  isDegradedMode: boolean;
+  setDegradedMode:(v: boolean) => void;
+
   // Alerts
   alerts:       Alert[];
   setAlerts:    (a: Alert[]) => void;
@@ -39,6 +43,9 @@ export const useStore = create<RawsStore>((set) => ({
         p.id === updated.id ? updated : p
       ),
     })),
+
+  isDegradedMode:  false,
+  setDegradedMode: (v) => set({ isDegradedMode: v }),
 
   alerts:       [],
   setAlerts:    (alerts) => set({ alerts }),

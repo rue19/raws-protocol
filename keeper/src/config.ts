@@ -21,6 +21,8 @@ const envSchema = z.object({
   // Contracts
   VAULT_CONTRACT_ID:       z.string().startsWith('C'),
   AMM_CONTRACT_ID:         z.string().startsWith('C'),
+  AQUA_TOKEN_ADDRESS:      z.string().startsWith('C'),
+  SOROSWAP_ROUTER_ADDRESS: z.string().startsWith('C'),
 
   // Supabase
   SUPABASE_URL:            z.string().url(),

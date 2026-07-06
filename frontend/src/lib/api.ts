@@ -24,10 +24,25 @@ async function post<T>(path: string, body: object): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface ChainPosition {
+  userAddress: string;
+  lpTokenAddress: string;
+  dfTokenShares: number;
+  lpTokenAmount: number;
+}
+
 export const api = {
   getPositions: (address: string) =>
     get<{ positions: PositionWithNEY[]; total_value_usd: number | null }>
     (`/positions/${address}`),
+
+  /**
+   * Fallback: reconstruct positions from on-chain contract events via Horizon.
+   * Returns raw chain-derived positions when Supabase is unavailable.
+   */
+  getPositionsFromChain: (address: string) =>
+    get<{ positions: ChainPosition[]; source: string; fetched_at: string }>
+    (`/positions/${address}/chain`),
 
   getPools: (params?: { protocol?: string; safe_mode?: boolean }) => {
     const qs = params

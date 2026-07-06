@@ -11,7 +11,7 @@ use soroban_sdk::{contract, contractimpl, token, Address, Env, IntoVal, Symbol, 
 use crate::events::{emit_deposit, emit_deposit_single_asset, emit_harvest, emit_withdraw};
 #[allow(unused_imports)]
 use crate::storage::*;
-use crate::types::{LPPosition, VaultMode};
+use crate::types::{LPPosition, StorageKey, VaultMode};
 
 // ─── Constants ─────────────────────────────────────────────────────
 
@@ -20,6 +20,13 @@ const SLIPPAGE_BPS: i128 = 50;
 const SCALE_FACTOR: i128 = 1_000_000;
 
 // ─── Helpers ───────────────────────────────────────────────────────
+
+/// Assert that the caller is NOT the keeper.
+/// The keeper is only authorized to call harvest().
+fn assert_not_keeper(env: &Env, caller: &Address) {
+    let keeper = get_keeper(env);
+    assert!(*caller != keeper, "Keeper cannot call user functions");
+}
 
 /// Integer square root via Newton's method.
 /// Returns floor(sqrt(n)) for n >= 0.
@@ -41,22 +48,38 @@ pub fn integer_sqrt(n: i128) -> i128 {
 
 /// Calculate the optimal split ratio for a single-asset deposit.
 ///
-/// Uses the 50/50 approximation: splits amount_in evenly.
+/// Given a pool with reserves (rx, ry) and an input amount, compute how much
+/// of amount_in should be swapped (via constant-product AMM with fee bps)
+/// such that after the swap, both sides are balanced for add_liquidity.
 ///
-/// TODO: Replace with closed-form formula before mainnet:
-///   amount_to_swap = (sqrt(rx * (rx + amount_in * (1 - fee))) - rx) / (1 - fee)
+/// Formula (constant-product, fee in basis points):
+///   amount_to_swap = (sqrt(rx * (rx + amount_in * 10_000 / (10_000 - fee_bps))) - rx)
+///                    * (10_000 - fee_bps) / 10_000
 ///
 /// Returns (amount_to_keep, amount_to_swap).
 pub fn calc_split_ratio(
     _env: &Env,
-    _soroswap_router: &Address,
-    _token_in: &Address,
-    _token_pair: &Address,
+    reserve_in: i128,
+    reserve_out: i128,
     amount_in: i128,
+    fee_bps: i128,
 ) -> (i128, i128) {
-    let half = amount_in / 2;
-    let other_half = amount_in - half;
-    (half, other_half)
+    if reserve_in <= 0 || reserve_out <= 0 {
+        let half = amount_in / 2;
+        return (half, amount_in - half);
+    }
+
+    let one_minus_fee = BPS_BASE - fee_bps;
+    let numerator = reserve_in * (reserve_in * BPS_BASE + amount_in * one_minus_fee) / BPS_BASE;
+    let sqrt_val = integer_sqrt(numerator);
+    let amount_to_swap = (sqrt_val - reserve_in) * one_minus_fee / BPS_BASE;
+
+    if amount_to_swap <= 0 || amount_to_swap >= amount_in {
+        let half = amount_in / 2;
+        return (half, amount_in - half);
+    }
+
+    (amount_in - amount_to_swap, amount_to_swap)
 }
 
 /// Slippage-adjusted minimum output amount.
@@ -75,6 +98,7 @@ impl VaultContract {
         if is_initialized(&env) {
             panic!("already initialized");
         }
+        assert!(admin != keeper, "initialize: admin and keeper must be different addresses");
         set_admin(&env, &admin);
         set_keeper(&env, &keeper);
         set_mode(&env, &mode);
@@ -84,6 +108,7 @@ impl VaultContract {
 
     pub fn deposit(env: Env, from: Address, lp_token: Address, amount: i128) -> i128 {
         from.require_auth();
+        assert_not_keeper(&env, &from);
         if amount <= 0 {
             panic!("deposit: amount must be > 0");
         }
@@ -113,6 +138,7 @@ impl VaultContract {
 
     pub fn withdraw(env: Env, from: Address, lp_token: Address, df_token_amount: i128) -> i128 {
         from.require_auth();
+        assert_not_keeper(&env, &from);
         if df_token_amount <= 0 {
             panic!("withdraw: df_token_amount must be > 0");
         }
@@ -193,13 +219,17 @@ impl VaultContract {
 
     // ─── Phase 3 Functions ───────────────────────────────────────
 
-    /// Set the Soroswap router address. Admin-only, callable once.
+    /// Set the Soroswap router address. Admin-only, immutable after first set.
     pub fn set_soroswap_router(env: Env, caller: Address, router: Address) {
         let admin = get_admin(&env);
         if caller != admin {
             panic!("set_soroswap_router: only admin");
         }
         caller.require_auth();
+        assert!(
+            !env.storage().instance().has::<StorageKey>(&StorageKey::SoroswapRouter),
+            "set_soroswap_router: already set — immutable after init"
+        );
         set_soroswap_router(&env, &router);
     }
 
@@ -226,6 +256,7 @@ impl VaultContract {
         min_lp_out: i128,
     ) -> i128 {
         caller.require_auth();
+        assert_not_keeper(&env, &caller);
 
         if amount_in <= 0 {
             panic!("deposit_single_asset: amount_in must be > 0");
@@ -257,13 +288,19 @@ impl VaultContract {
             token_a
         };
 
-        // Calculate split ratio (50/50 approximation)
+        // Query pool reserves by reading token balances
+        let token_in_client_r = token::Client::new(&env, &token_in);
+        let token_pair_client_r = token::Client::new(&env, &token_pair);
+        let reserve_in = token_in_client_r.balance(&target_pool);
+        let reserve_out = token_pair_client_r.balance(&target_pool);
+
+        // Calculate optimal split ratio (Soroswap fee = 0.3% = 30 bps)
         let (amount_to_keep, amount_to_swap) = calc_split_ratio(
             &env,
-            &soroswap_router,
-            &token_in,
-            &token_pair,
+            reserve_in,
+            reserve_out,
             amount_in,
+            30,
         );
 
         assert!(amount_to_swap > 0 && amount_to_keep > 0, "InvalidSplitRatio");
@@ -385,13 +422,17 @@ impl VaultContract {
 
     // ─── Phase 4 Functions ───────────────────────────────────────
 
-    /// Set the RAW$ AMM contract address. Admin-only.
+    /// Set the RAW$ AMM contract address. Admin-only, immutable after first set.
     pub fn set_amm_address(env: Env, caller: Address, amm: Address) {
         let admin = get_admin(&env);
         if caller != admin {
             panic!("set_amm_address: only admin");
         }
         caller.require_auth();
+        assert!(
+            !env.storage().instance().has::<StorageKey>(&StorageKey::RawsAmmAddress),
+            "set_amm_address: already set — immutable after init"
+        );
         set_amm_address(&env, &amm);
     }
 
@@ -419,6 +460,7 @@ impl VaultContract {
         min_shares: i128,
     ) -> i128 {
         caller.require_auth();
+        assert_not_keeper(&env, &caller);
         assert!(amount_in > 0, "deposit_safe_mode: amount_in must be > 0");
 
         let mode = get_mode(&env);
@@ -450,9 +492,15 @@ impl VaultContract {
             amm_token_a.clone()
         };
 
-        // Calculate 50/50 split ratio
+        // Query AMM reserves
+        let token_in_client_r = token::Client::new(&env, &token_in);
+        let token_pair_client_r = token::Client::new(&env, &token_pair);
+        let reserve_in = token_in_client_r.balance(&amm_address);
+        let reserve_out = token_pair_client_r.balance(&amm_address);
+
+        // Calculate optimal split ratio (RAW$ AMM fee = 4 bps)
         let (amount_to_keep, amount_to_swap) =
-            calc_split_ratio(&env, &amm_address, &token_in, &token_pair, amount_in);
+            calc_split_ratio(&env, reserve_in, reserve_out, amount_in, 4);
 
         assert!(amount_to_swap > 0 && amount_to_keep > 0, "InvalidSplitRatio");
         assert!(
