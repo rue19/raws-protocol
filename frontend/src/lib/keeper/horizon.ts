@@ -58,3 +58,67 @@ export async function getFeeRevenueSince(poolId: string, sinceTimestamp: Date): 
   }
   return totalFees;
 }
+
+// ─── Client-side LP Balance Reads ──────────────────────────────────
+// Read LP token balances directly from Horizon as fallback
+// when the primary API is unavailable.
+
+interface AccountResponse {
+  balances: Array<{
+    asset_type: string;
+    asset_code?: string;
+    asset_issuer?: string;
+    balance: string;
+    contract?: string;
+  }>;
+}
+
+/**
+ * Read the user's LP token balance directly from Horizon.
+ * Used for degraded mode when Supabase is down.
+ */
+export async function getUserLPBalance(
+  userAddress: string,
+  lpTokenAddress: string
+): Promise<bigint> {
+  try {
+    const response = await fetchWithRetry(
+      `${HORIZON_URL}/accounts/${userAddress}`
+    );
+    const data = (await response.json()) as AccountResponse;
+
+    // Look for the LP token in the account's balances
+    for (const balance of data.balances) {
+      // For contract-backed tokens, check the contract address
+      if (balance.contract === lpTokenAddress) {
+        return toBigint(balance.balance);
+      }
+      // For classic assets, match by code/issuer
+      if (balance.asset_code && `${balance.asset_code}:${balance.asset_issuer}` === lpTokenAddress) {
+        return toBigint(balance.balance);
+      }
+    }
+
+    return BigInt(0);
+  } catch (err) {
+    console.warn('[Horizon] Failed to read LP balance:', err);
+    return BigInt(0);
+  }
+}
+
+/**
+ * Read the vault contract's DF token total supply via Soroban RPC simulation.
+ * This is a read-only call that doesn't require signing.
+ */
+export async function getVaultTotalSupply(vaultContractId: string): Promise<bigint> {
+  try {
+    // Use Horizon's contract simulation endpoint
+    const response = await fetchWithRetry(
+      `${HORIZON_URL}/contracts/${vaultContractId}/invoke?fn=get_total_supply`
+    );
+    const data = (await response.json()) as { result?: string };
+    return data.result ? toBigint(data.result) : BigInt(0);
+  } catch {
+    return BigInt(0);
+  }
+}

@@ -640,27 +640,35 @@ fn setup_phase3() -> (
 // ─── Phase 3 Unit Tests ─────────────────────────────────────────────
 
 #[test]
-fn test_calc_split_ratio_50_50() {
+fn test_calc_split_ratio_balanced_pool() {
     let env = Env::default();
-    let router = Address::generate(&env);
-    let token_a = Address::generate(&env);
-    let token_b = Address::generate(&env);
+    let reserve_in = 100_000;
+    let reserve_out = 100_000;
+    let amount_in = 10_000;
+    let fee_bps = 30;
 
-    let (keep, swap) = crate::calc_split_ratio(&env, &router, &token_a, &token_b, 1000);
-    assert_eq!(keep, 500);
-    assert_eq!(swap, 500);
+    let (keep, swap) = crate::calc_split_ratio(&env, reserve_in, reserve_out, amount_in, fee_bps);
+
+    assert!(swap > 0, "should swap some");
+    assert!(keep > 0, "should keep some");
+    assert_eq!(keep + swap, amount_in);
+
+    // For a balanced pool, optimal split should be roughly 50/50
+    let half = amount_in / 2;
+    let diff = (swap - half).abs();
+    assert!(
+        diff < amount_in / 20,
+        "swap amount ({}) should be close to half ({})",
+        swap,
+        half
+    );
 }
 
 #[test]
 fn test_calc_split_ratio_odd_amount() {
     let env = Env::default();
-    let router = Address::generate(&env);
-    let token_a = Address::generate(&env);
-    let token_b = Address::generate(&env);
-
-    let (keep, swap) = crate::calc_split_ratio(&env, &router, &token_a, &token_b, 1001);
-    assert_eq!(keep, 500);
-    assert_eq!(swap, 501);
+    let (keep, swap) = crate::calc_split_ratio(&env, 100_000, 100_000, 1001, 30);
+    assert_eq!(keep + swap, 1001);
 }
 
 #[test]
@@ -1059,4 +1067,147 @@ fn test_deposit_safe_mode_balanced_lp() {
         shares_after > shares_before,
         "AMM total shares should increase — liquidity added"
     );
+}
+
+// ─── Keeper Isolation Tests (Work Stream 1A) ──────────────────────
+
+#[test]
+#[should_panic(expected = "initialize: admin and keeper must be different addresses")]
+fn test_initialize_rejects_admin_equals_keeper() {
+    let (env, admin, _keeper, _user1, _lp_token) = setup();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+
+    client.initialize(&admin, &admin, &VaultMode::YieldMode);
+}
+
+#[test]
+#[should_panic(expected = "Keeper cannot call user functions")]
+fn test_deposit_rejects_keeper() {
+    let (env, admin, keeper, _user1, lp_token) = setup();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::YieldMode);
+
+    env.mock_all_auths();
+
+    client.deposit(&keeper, &lp_token, &1000);
+}
+
+#[test]
+#[should_panic(expected = "Keeper cannot call user functions")]
+fn test_withdraw_rejects_keeper() {
+    let (env, admin, keeper, user1, lp_token) = setup();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::YieldMode);
+
+    env.mock_all_auths();
+
+    client.deposit(&user1, &lp_token, &1000);
+
+    client.withdraw(&keeper, &lp_token, &1000);
+}
+
+#[test]
+fn test_harvest_allows_keeper() {
+    let (env, admin, keeper, _user1, lp_token) = setup();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::YieldMode);
+
+    // Give keeper some LP tokens (harvest transfers from keeper to vault)
+    env.as_contract(&lp_token, || {
+        mock_token::MockToken::initialize(env.clone(), keeper.clone(), 5000);
+    });
+    // Also seed vault so it has room to receive
+    env.as_contract(&lp_token, || {
+        mock_token::MockToken::initialize(env.clone(), vault_id.clone(), 5000);
+    });
+
+    env.mock_all_auths();
+
+    client.harvest(&keeper, &lp_token, &1000);
+}
+
+// ─── One-Time-Set Guard Tests (Work Stream 1B) ────────────────────
+
+#[test]
+#[should_panic(expected = "set_soroswap_router: already set")]
+fn test_set_soroswap_router_rejects_double_set() {
+    let (env, admin, keeper, _user1, _lp_token) = setup();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::YieldMode);
+
+    let router1 = Address::generate(&env);
+    let router2 = Address::generate(&env);
+
+    env.mock_all_auths();
+
+    client.set_soroswap_router(&admin, &router1);
+    client.set_soroswap_router(&admin, &router2);
+}
+
+#[test]
+#[should_panic(expected = "set_amm_address: already set")]
+fn test_set_amm_address_rejects_double_set() {
+    let (env, admin, keeper, _user1, _lp_token) = setup();
+    let vault_id = env.register(VaultContract, ());
+    let client = VaultContractClient::new(&env, &vault_id);
+    client.initialize(&admin, &keeper, &VaultMode::SafeMode);
+
+    let amm1 = Address::generate(&env);
+    let amm2 = Address::generate(&env);
+
+    env.mock_all_auths();
+
+    client.set_amm_address(&admin, &amm1);
+    client.set_amm_address(&admin, &amm2);
+}
+
+// ─── Optimal Split Formula Tests (Work Stream 1C) ─────────────────
+
+#[test]
+fn test_calc_split_ratio_unbalanced_pool() {
+    let env = Env::default();
+    // Pool is 2:1 imbalanced — token_in is abundant, token_pair is scarce
+    let reserve_in = 200_000;
+    let reserve_out = 100_000;
+    let amount_in = 10_000;
+    let fee_bps = 30;
+
+    let (keep, swap) = crate::calc_split_ratio(&env, reserve_in, reserve_out, amount_in, fee_bps);
+
+    assert!(swap > 0);
+    assert!(keep > 0);
+    assert_eq!(keep + swap, amount_in);
+
+    // When token_in is abundant (rx > ry), each unit of token_in converts to
+    // more than 1 unit of token_pair, so we swap LESS than half.
+    assert!(
+        swap < amount_in / 2,
+        "when token_in is abundant (rx > ry), swap ({}) should be < half ({})",
+        swap,
+        amount_in / 2
+    );
+}
+
+#[test]
+fn test_calc_split_ratio_zero_reserves_fallback() {
+    let env = Env::default();
+    let (keep, swap) = crate::calc_split_ratio(&env, 0, 100_000, 10_000, 30);
+
+    assert_eq!(keep + swap, 10_000);
+    assert_eq!(keep, 5000);
+    assert_eq!(swap, 5000);
+}
+
+#[test]
+fn test_calc_split_ratio_full_fee_erosion() {
+    let env = Env::default();
+    let (keep, swap) = crate::calc_split_ratio(&env, 100_000, 100_000, 10_000, 10_000);
+
+    // With 100% fee, the formula returns 50/50 fallback
+    assert_eq!(keep + swap, 10_000);
 }

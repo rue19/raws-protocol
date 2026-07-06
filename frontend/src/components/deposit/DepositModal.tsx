@@ -44,12 +44,41 @@ export function DepositModal({ pool, onClose }: DepositModalProps) {
   const tokenA = tokens[0] || 'Token A'
   const tokenB = tokens[1] || 'Token B'
   const amount = parseFloat(state.amount) || 0
-  const halfValue = amount / 2
-  const reserveRatio = (pool.latest_snapshot?.reserve_b ?? 0) > 0
-    ? (pool.latest_snapshot?.reserve_b ?? 0) / (pool.latest_snapshot?.reserve_a ?? 1)
-    : 1
-  const splitA = halfValue
-  const splitB = halfValue / reserveRatio
+
+  // Optimal split formula (constant-product, 0.3% fee = 30 bps)
+  const reserveA = pool.latest_snapshot?.reserve_a ?? 0
+  const reserveB = pool.latest_snapshot?.reserve_b ?? 0
+  const FEE_BPS = 30
+  const BPS_BASE = 10_000
+
+  function integerSqrt(n: number): number {
+    if (n <= 0) return 0
+    let x = n
+    let y = Math.floor((x + 1) / 2)
+    while (y < x) {
+      x = y
+      y = Math.floor((x + n / x) / 2)
+    }
+    return x
+  }
+
+  function calcOptimalSplit(reserveIn: number, reserveOut: number, amountIn: number): [number, number] {
+    if (reserveIn <= 0 || reserveOut <= 0) {
+      const half = Math.floor(amountIn / 2)
+      return [half, amountIn - half]
+    }
+    const oneMinusFee = BPS_BASE - FEE_BPS
+    const numerator = Math.floor(reserveIn * (reserveIn * BPS_BASE + amountIn * oneMinusFee) / BPS_BASE)
+    const sqrtVal = integerSqrt(numerator)
+    const amountToSwap = Math.floor((sqrtVal - reserveIn) * oneMinusFee / BPS_BASE)
+    if (amountToSwap <= 0 || amountToSwap >= amountIn) {
+      const half = Math.floor(amountIn / 2)
+      return [half, amountIn - half]
+    }
+    return [amountIn - amountToSwap, amountToSwap]
+  }
+
+  const [splitA, splitB] = calcOptimalSplit(reserveA, reserveB, amount)
 
   const minDeposit = 1.0
   const isAmountValid = amount >= minDeposit

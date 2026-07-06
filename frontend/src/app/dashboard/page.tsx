@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const {
     walletAddress, positions, setPositions,
     alerts, setAlerts, isLoadingPositions, setLoadingPositions,
+    isDegradedMode, setDegradedMode,
   } = useStore();
 
   const [pools, setPools] = useState<PoolWithHealth[]>([]);
@@ -36,18 +37,56 @@ export default function DashboardPage() {
     setLoadingLogs(true);
 
     try {
-      const [posData, poolData, logData, alertData] = await Promise.all([
+      const [posResult, poolResult, logResult, alertResult] = await Promise.allSettled([
         api.getPositions(walletAddress),
         api.getPools(),
         api.getCompoundLog(walletAddress, 20),
         api.getAlerts(walletAddress),
       ]);
 
-      setPositions(posData.positions);
-      setPools(poolData.pools);
-      setCompoundLogs(logData.logs);
-      setTotalRewards(logData.total_rewards_usd);
-      setAlerts(alertData.alerts);
+      // Positions: fallback to chain if primary fails
+      if (posResult.status === 'fulfilled') {
+        setPositions(posResult.value.positions);
+        setDegradedMode(false);
+      } else {
+        try {
+          const chainData = await api.getPositionsFromChain(walletAddress);
+          const mapped = chainData.positions.map((cp, i) => ({
+            id: `chain-${cp.userAddress}-${i}`,
+            user_address: cp.userAddress,
+            pool_id: cp.lpTokenAddress,
+            pool_protocol: 'raws_amm' as const,
+            vault_mode: 'YieldMode' as const,
+            lp_token_amount: cp.lpTokenAmount,
+            df_token_shares: cp.dfTokenShares,
+            entry_price_ratio: 1,
+            entry_timestamp: new Date().toISOString(),
+            is_active: true,
+            tx_hash: null,
+            created_at: chainData.fetched_at,
+            updated_at: chainData.fetched_at,
+            current_value_usd: null,
+            il_percent: 0,
+            fee_earned_usd: null,
+            ney_score: null,
+            health_status: 'UNKNOWN',
+            compound_count: 0,
+            last_compounded_at: null,
+          }));
+          setPositions(mapped);
+          setDegradedMode(true);
+        } catch {
+          setPositions([]);
+          setDegradedMode(true);
+        }
+      }
+
+      if (poolResult.status === 'fulfilled') setPools(poolResult.value.pools);
+      if (logResult.status === 'fulfilled') {
+        setCompoundLogs(logResult.value.logs);
+        setTotalRewards(logResult.value.total_rewards_usd);
+      }
+      if (alertResult.status === 'fulfilled') setAlerts(alertResult.value.alerts);
       setLastRefresh(new Date());
     } catch (err) {
       console.error('Dashboard load error:', err);
@@ -55,7 +94,7 @@ export default function DashboardPage() {
       setLoadingPositions(false);
       setLoadingLogs(false);
     }
-  }, [walletAddress, setPositions, setAlerts, setLoadingPositions]);
+  }, [walletAddress, setPositions, setAlerts, setLoadingPositions, setDegradedMode]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -105,6 +144,15 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#faf3e4]">
       <SmartExitModal />
+
+      {/* Degraded Mode Banner */}
+      {isDegradedMode && (
+        <div className="bg-amber-100 border-b border-amber-300 px-4 py-2 text-center">
+          <p className="text-xs font-mono text-amber-800">
+            ⚠ Degraded Mode — Showing on-chain data only. Some features may be unavailable.
+          </p>
+        </div>
+      )}
 
       <div className="px-4 sm:px-7 pt-14 md:pt-0 pb-7">
         <DashboardTopbar lastRefresh={lastRefresh} />

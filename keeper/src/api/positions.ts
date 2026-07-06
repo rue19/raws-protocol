@@ -3,6 +3,7 @@ import { db } from '../db';
 import { Position, PositionWithNEY } from '../types/index';
 import { calcIL, calcNEY } from '../lib/math';
 import { getRecentSnapshots } from '../services/poolService';
+import { reconstructPositionFromEvents, reconstructAllPositionsFromChain } from '../services/horizon';
 
 export async function positionsRoutes(fastify: FastifyInstance): Promise<void> {
 
@@ -122,6 +123,30 @@ export async function positionsRoutes(fastify: FastifyInstance): Promise<void> {
         total_value_usd: enriched.some((p) => p.current_value_usd !== null)
                            ? totalValueUsd
                            : null,
+        fetched_at: new Date().toISOString(),
+      });
+    }
+  );
+
+  /**
+   * GET /positions/:address/chain
+   *
+   * Reconstruct positions directly from on-chain contract events via Horizon.
+   * Used as fallback when Supabase is unavailable.
+   */
+  fastify.get<{
+    Params: { address: string }
+  }>(
+    '/positions/:address/chain',
+    { schema: { params: paramsSchema } },
+    async (request, reply) => {
+      const { address } = request.params;
+      const chainPositions = await reconstructPositionFromEvents(address);
+
+      return reply.send({
+        address,
+        positions: chainPositions,
+        source: 'chain_events',
         fetched_at: new Date().toISOString(),
       });
     }
