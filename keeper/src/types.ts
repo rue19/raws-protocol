@@ -3,14 +3,14 @@
 
 export interface PoolSnapshot {
   pool_id: string;
-  reserve_a: bigint;
-  reserve_b: bigint;
-  fee_revenue_30m: bigint;
+  reserve_a: number;
+  reserve_b: number;
+  fee_revenue_30m: number;
   current_price_ratio: number;
   entry_price_ratio?: number;
-  ney?: number;
+  ney_score?: number | null;
   health_status?: HealthStatus;
-  cycle_timestamp: Date;
+  cycle_timestamp: Date | string | null;
 }
 
 export type HealthStatus = "GREEN" | "YELLOW" | "RED" | "RED_CRITICAL";

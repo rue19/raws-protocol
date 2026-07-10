@@ -24,14 +24,14 @@ export async function runWatchdogCycle(): Promise<void> {
       const enrichedSnap = { ...snap, entry_price_ratio: poolEntryRatio };
 
       const history = await getRecentSnapshots(snap.pool_id, RED_STREAK_TO_ALERT);
-      const { status, ney } = await evalPoolHealth(enrichedSnap, history, {
+      const { status, ney: ney_score } = await evalPoolHealth(enrichedSnap, history, {
         yellowThreshold: YELLOW_THRESHOLD,
         redStreakToAlert: RED_STREAK_TO_ALERT,
       });
 
       await upsertPoolSnapshot({
         ...enrichedSnap,
-        ney,
+        ney_score,
         health_status: status,
       });
 
@@ -40,7 +40,7 @@ export async function runWatchdogCycle(): Promise<void> {
           await triggerSmartExitAlert({
             pool: enrichedSnap,
             position,
-            ney,
+            ney_score,
           });
         }
       }

@@ -20,17 +20,18 @@ export async function snapshotAllPools(): Promise<PoolSnapshot[]> {
   for (const poolId of poolIds) {
     try {
       const { reserveA, reserveB } = await getPoolReserves(poolId);
-      const feeRevenue = await getFeeRevenueSince(poolId, thirtyMinutesAgo());
+      const feeRevenueRaw = await getFeeRevenueSince(poolId, thirtyMinutesAgo());
 
       const reserveAVal = Number(reserveA);
       const reserveBVal = Number(reserveB);
+      const feeRevenue = Number(feeRevenueRaw);
       const currentPriceRatio =
         reserveAVal !== 0 ? reserveBVal / reserveAVal : 0;
 
       snapshots.push({
         pool_id: poolId,
-        reserve_a: reserveA,
-        reserve_b: reserveB,
+        reserve_a: reserveAVal,
+        reserve_b: reserveBVal,
         fee_revenue_30m: feeRevenue,
         current_price_ratio: currentPriceRatio,
         cycle_timestamp: roundTo30MinBoundary(new Date()),

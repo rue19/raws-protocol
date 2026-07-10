@@ -17,17 +17,21 @@ export interface Position {
 }
 
 export interface PoolSnapshot {
-  id:                 string;
+  id?:                string;
   pool_id:            string;
-  pool_protocol:      string;
+  pool_protocol?:     string;
   reserve_a:          number;
   reserve_b:          number;
-  price_ratio:        number;
-  fee_revenue_period: number;
-  total_tvl_usd:      number | null;
-  health_status:      'GREEN' | 'YELLOW' | 'RED' | 'RED_CRITICAL';
-  ney_score:          number | null;
-  captured_at:        string;
+  price_ratio?:       number;
+  current_price_ratio: number;
+  fee_revenue_period?: number;
+  fee_revenue_30m:    number;
+  total_tvl_usd?:     number | null;
+  health_status?:     'GREEN' | 'YELLOW' | 'RED' | 'RED_CRITICAL';
+  ney_score?:         number | null;
+  cycle_timestamp:    Date | string | null;
+  entry_price_ratio?: number;
+  captured_at?:       string;
 }
 
 export interface CompoundLog {

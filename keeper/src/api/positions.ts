@@ -89,7 +89,7 @@ export async function positionsRoutes(fastify: FastifyInstance): Promise<void> {
           ]);
 
           const snap     = snapshots[0] ?? null;
-          const currentRatio = snap ? snap.price_ratio : pos.entry_price_ratio;
+          const currentRatio = snap?.price_ratio ?? pos.entry_price_ratio;
           const ilDecimal    = calcIL(pos.entry_price_ratio, currentRatio);
 
           // compound_log count

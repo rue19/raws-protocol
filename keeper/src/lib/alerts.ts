@@ -8,7 +8,7 @@ export function setKnownOpenAlerts(keys: string[]): void {
 export async function triggerSmartExitAlert(input: {
   pool: { pool_id: string };
   position: { user_address: string };
-  ney: number;
+  ney_score: number;
 }): Promise<{ alert_type: string; pool_id: string; user_address: string; current_loss_rate: number; status: string }> {
   const key = `${input.pool.pool_id}:${input.position.user_address}`;
   if (knownOpenAlerts.has(key)) {
@@ -16,7 +16,7 @@ export async function triggerSmartExitAlert(input: {
       alert_type: "SMART_EXIT",
       pool_id: input.pool.pool_id,
       user_address: input.position.user_address,
-      current_loss_rate: input.ney,
+      current_loss_rate: input.ney_score,
       status: "SKIPPED_DUPLICATE",
     };
   }
@@ -26,7 +26,7 @@ export async function triggerSmartExitAlert(input: {
     alert_type: "SMART_EXIT",
     pool_id: input.pool.pool_id,
     user_address: input.position.user_address,
-    current_loss_rate: input.ney,
+    current_loss_rate: input.ney_score,
     status: "OPEN",
   };
 }

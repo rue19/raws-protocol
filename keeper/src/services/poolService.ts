@@ -72,12 +72,12 @@ export async function enrichPool(pool: TrackedPool): Promise<PoolWithHealth> {
 
   if (latest) {
     // Real yield APY = annualised fee revenue from latest snapshot
-    realYieldApy = annualise(latest.fee_revenue_period);
+    realYieldApy = annualise(latest.fee_revenue_period ?? 0);
 
     // NEY = fee_revenue - IL (using price_ratio as current, need entry — use 1.0 as baseline
     // The watchdog already computed ney_score and health_status per snapshot
-    neyScore     = latest.ney_score;
-    healthStatus = latest.health_status as PoolWithHealth['health_status'];
+    neyScore     = latest.ney_score ?? null;
+    healthStatus = (latest.health_status as PoolWithHealth['health_status']) ?? 'UNKNOWN';
   }
 
   return {
