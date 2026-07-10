@@ -33,7 +33,7 @@ async function callHarvest(
   vaultContractId: string,
   poolId: string,
   lpTokenAddress: string,
-): Promise<string> {
+): Promise<{ txHash: string; gasCostXlm: number } | 'SKIPPED_LOW_REWARDS'> {
   const vault = new Contract(vaultContractId);
   const account = await server.getAccount(keeperKeypair.publicKey());
   const keeperAddress = Address.fromString(keeperKeypair.publicKey());
@@ -75,7 +75,10 @@ async function callHarvest(
   if (getResult.status !== 'SUCCESS') {
     throw new Error(`harvest tx failed: ${getResult.status}`);
   }
-  return sendResult.hash;
+
+  const STROOPS_PER_XLM = 10_000_000;
+  const gasCostXlm = Number(getResult.resultXdr.feeCharged()) / STROOPS_PER_XLM;
+  return { txHash: sendResult.hash, gasCostXlm };
 }
 
 export async function GET(request: NextRequest) {
@@ -133,7 +136,7 @@ export async function GET(request: NextRequest) {
         if ((count ?? 0) > 0) continue;
 
         const lpToken = pos.pool_id;
-        const txHash = await callHarvest(
+        const result = await callHarvest(
           server,
           keeperKeypair,
           networkPassphrase,
@@ -142,10 +145,12 @@ export async function GET(request: NextRequest) {
           lpToken,
         );
 
-        if (txHash === 'SKIPPED_LOW_REWARDS') {
+        if (result === 'SKIPPED_LOW_REWARDS') {
           skipped++;
           continue;
         }
+
+        const { txHash, gasCostXlm } = result;
 
         await db.from('compound_log').insert({
           pool_id: pos.pool_id,
@@ -153,7 +158,7 @@ export async function GET(request: NextRequest) {
           position_id: pos.id,
           rewards_harvested: 0,
           tx_hash: txHash,
-          gas_cost_xlm: 0.00015,
+          gas_cost_xlm: gasCostXlm,
           compounded_at: new Date().toISOString(),
         });
 

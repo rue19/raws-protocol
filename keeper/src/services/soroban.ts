@@ -30,7 +30,7 @@ function vecVal(items: xdr.ScVal[]): xdr.ScVal {
   return xdr.ScVal.scvVec(items);
 }
 
-async function buildAndSendTx(ops: xdr.Operation[]): Promise<string> {
+async function buildAndSendTx(ops: xdr.Operation[]): Promise<{ txHash: string; gasCostXlm: number }> {
   const account = await server.getAccount(keeperKeypair.publicKey());
   const tx = new TransactionBuilder(account, {
     fee: "300000",
@@ -57,7 +57,10 @@ async function buildAndSendTx(ops: xdr.Operation[]): Promise<string> {
   if (getResult.status !== "SUCCESS") {
     throw new Error(`tx failed: ${getResult.status}`);
   }
-  return sendResult.hash;
+
+  const STROOPS_PER_XLM = 10_000_000;
+  const gasCostXlm = Number(getResult.resultXdr.feeCharged()) / STROOPS_PER_XLM;
+  return { txHash: sendResult.hash, gasCostXlm };
 }
 
 async function simulateView(contractId: string, fn: string, args: xdr.ScVal[]): Promise<xdr.ScVal> {
@@ -80,7 +83,7 @@ async function simulateView(contractId: string, fn: string, args: xdr.ScVal[]): 
 export async function claimAndCompound(
   aquaRewardAmount: bigint,
   lpTokenAddress: string
-): Promise<string> {
+): Promise<{ txHash: string; gasCostXlm: number }> {
   if (aquaRewardAmount <= 0n) {
     throw new Error("claimAndCompound: no AQUA rewards to compound");
   }
@@ -135,10 +138,10 @@ export async function claimAndCompound(
     ),
   ];
 
-  const txHash = await buildAndSendTx(ops);
+  const { txHash, gasCostXlm } = await buildAndSendTx(ops);
   logger.info(
-    { aquaAmount: aquaRewardAmount.toString(), lpOut: minLpOut.toString(), txHash },
+    { aquaAmount: aquaRewardAmount.toString(), lpOut: minLpOut.toString(), txHash, gasCostXlm },
     "claim-and-compound pipeline complete"
   );
-  return txHash;
+  return { txHash, gasCostXlm };
 }

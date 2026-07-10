@@ -34,9 +34,9 @@ export async function runCompoundCycle(): Promise<void> {
       });
 
       // Full pipeline: claim AQUA → swap AQUA→LP via Soroswap → call vault.harvest()
-      const txHash = await claimAndCompound(aquaRewards, pos.pool_id);
+      const { txHash, gasCostXlm } = await claimAndCompound(aquaRewards, pos.pool_id);
 
-      await updateCompoundLog(logRow.id, { tx_hash: txHash });
+      await updateCompoundLog(logRow.id, { tx_hash: txHash, gas_cost_xlm: gasCostXlm });
       logger.info({ pool: pos.pool_id, aquaRewards: aquaRewards.toString(), txHash }, "compound complete");
     } catch (err) {
       logger.error({ pool: pos.pool_id, err }, "compound failed for this position — continuing to next");

@@ -1,9 +1,13 @@
 # Environment files — NEVER commit
-contracts/.env
-frontend/.env.local
-frontend/.env.development
-keeper/.env
-keeper/.env.development
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Deployment artifacts
+contracts/deploy-mainnet.env
+contracts/deploy-state.json
+contracts/deploy-*.log
 
 # Rust build artifacts
 contracts/target/

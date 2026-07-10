@@ -1,16 +1,17 @@
-name: Deploy Contracts to Testnet
+name: Deploy to Mainnet
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'contracts/**'
-      - '.github/workflows/deploy-contracts.yml'
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type YES to deploy to mainnet'
+        required: true
 
 jobs:
   deploy:
+    if: inputs.confirm == 'YES'
     runs-on: ubuntu-latest
+    environment: mainnet
     steps:
       - uses: actions/checkout@v4
 
@@ -49,66 +50,66 @@ jobs:
           stellar contract optimize --wasm target/wasm32-unknown-unknown/release/raws_vault.wasm
           stellar contract optimize --wasm target/wasm32-unknown-unknown/release/raws_amm.wasm
 
-      - name: Configure network
+      - name: Configure mainnet
         working-directory: contracts
         run: |
-          stellar network add testnet \
-            --rpc-url https://soroban-testnet.stellar.org \
-            --network-passphrase "Test SDF Network ; September 2015"
+          stellar network add mainnet \
+            --rpc-url https://mainnet.stellar.org/soroban/rpc \
+            --network-passphrase "Public Global Stellar Network ; September 2015"
 
       - name: Deploy vault
         id: deploy-vault
         working-directory: contracts
         env:
-          DEPLOYER_SECRET_KEY: ${{ secrets.DEPLOYER_SECRET_KEY }}
+          DEPLOYER_SECRET_KEY: ${{ secrets.MAINNET_DEPLOYER_SECRET_KEY }}
         run: |
           VAULT_ID=$(stellar contract deploy \
             --wasm target/wasm32-unknown-unknown/release/raws_vault.optimized.wasm \
             --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet)
+            --network mainnet)
           echo "vault_contract_id=$VAULT_ID" >> "$GITHUB_OUTPUT"
-          echo "Deployed vault: $VAULT_ID"
+          echo "::notice::Vault deployed: $VAULT_ID"
 
       - name: Deploy AMM
         id: deploy-amm
         working-directory: contracts
         env:
-          DEPLOYER_SECRET_KEY: ${{ secrets.DEPLOYER_SECRET_KEY }}
+          DEPLOYER_SECRET_KEY: ${{ secrets.MAINNET_DEPLOYER_SECRET_KEY }}
         run: |
           AMM_ID=$(stellar contract deploy \
             --wasm target/wasm32-unknown-unknown/release/raws_amm.optimized.wasm \
             --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet)
+            --network mainnet)
           echo "amm_contract_id=$AMM_ID" >> "$GITHUB_OUTPUT"
-          echo "Deployed AMM: $AMM_ID"
+          echo "::notice::AMM deployed: $AMM_ID"
 
       - name: Initialize vault
         working-directory: contracts
         env:
-          DEPLOYER_SECRET_KEY: ${{ secrets.DEPLOYER_SECRET_KEY }}
-          DEPLOYER_PUBLIC_KEY: ${{ secrets.DEPLOYER_PUBLIC_KEY }}
-          KEEPER_PUBLIC_KEY: ${{ secrets.KEEPER_PUBLIC_KEY }}
+          DEPLOYER_SECRET_KEY: ${{ secrets.MAINNET_DEPLOYER_SECRET_KEY }}
+          DEPLOYER_PUBLIC_KEY: ${{ secrets.MAINNET_DEPLOYER_PUBLIC_KEY }}
+          KEEPER_PUBLIC_KEY: ${{ secrets.MAINNET_KEEPER_PUBLIC_KEY }}
         run: |
           stellar contract invoke \
             --id "${{ steps.deploy-vault.outputs.vault_contract_id }}" \
             --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet \
+            --network mainnet \
             -- initialize \
             --admin "$DEPLOYER_PUBLIC_KEY" \
             --keeper "$KEEPER_PUBLIC_KEY" \
-            --mode 1
+            --mode SafeMode
 
       - name: Set Soroswap router on vault
         working-directory: contracts
         env:
-          DEPLOYER_SECRET_KEY: ${{ secrets.DEPLOYER_SECRET_KEY }}
-          DEPLOYER_PUBLIC_KEY: ${{ secrets.DEPLOYER_PUBLIC_KEY }}
-          SOROSWAP_ROUTER_ADDRESS: ${{ secrets.SOROSWAP_ROUTER_ADDRESS }}
+          DEPLOYER_SECRET_KEY: ${{ secrets.MAINNET_DEPLOYER_SECRET_KEY }}
+          DEPLOYER_PUBLIC_KEY: ${{ secrets.MAINNET_DEPLOYER_PUBLIC_KEY }}
+          SOROSWAP_ROUTER_ADDRESS: ${{ secrets.MAINNET_SOROSWAP_ROUTER_ADDRESS }}
         run: |
           stellar contract invoke \
             --id "${{ steps.deploy-vault.outputs.vault_contract_id }}" \
             --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet \
+            --network mainnet \
             -- set_soroswap_router \
             --caller "$DEPLOYER_PUBLIC_KEY" \
             --router "$SOROSWAP_ROUTER_ADDRESS"
@@ -116,13 +117,13 @@ jobs:
       - name: Set AMM address on vault
         working-directory: contracts
         env:
-          DEPLOYER_SECRET_KEY: ${{ secrets.DEPLOYER_SECRET_KEY }}
-          DEPLOYER_PUBLIC_KEY: ${{ secrets.DEPLOYER_PUBLIC_KEY }}
+          DEPLOYER_SECRET_KEY: ${{ secrets.MAINNET_DEPLOYER_SECRET_KEY }}
+          DEPLOYER_PUBLIC_KEY: ${{ secrets.MAINNET_DEPLOYER_PUBLIC_KEY }}
         run: |
           stellar contract invoke \
             --id "${{ steps.deploy-vault.outputs.vault_contract_id }}" \
             --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet \
+            --network mainnet \
             -- set_amm_address \
             --caller "$DEPLOYER_PUBLIC_KEY" \
             --amm "${{ steps.deploy-amm.outputs.amm_contract_id }}"
@@ -130,64 +131,52 @@ jobs:
       - name: Initialize AMM
         working-directory: contracts
         env:
-          DEPLOYER_SECRET_KEY: ${{ secrets.DEPLOYER_SECRET_KEY }}
-          DEPLOYER_PUBLIC_KEY: ${{ secrets.DEPLOYER_PUBLIC_KEY }}
-          USDC_TOKEN_ADDRESS: ${{ secrets.USDC_TOKEN_ADDRESS }}
-          EURC_TOKEN_ADDRESS: ${{ secrets.EURC_TOKEN_ADDRESS }}
+          DEPLOYER_SECRET_KEY: ${{ secrets.MAINNET_DEPLOYER_SECRET_KEY }}
+          DEPLOYER_PUBLIC_KEY: ${{ secrets.MAINNET_DEPLOYER_PUBLIC_KEY }}
+          USDC_ADDRESS: ${{ secrets.MAINNET_USDC_ADDRESS }}
+          WRAPPED_XLM_ADDRESS: ${{ secrets.MAINNET_WRAPPED_XLM_ADDRESS }}
         run: |
           stellar contract invoke \
             --id "${{ steps.deploy-amm.outputs.amm_contract_id }}" \
             --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet \
+            --network mainnet \
             -- init \
-            --token_a "$USDC_TOKEN_ADDRESS" \
-            --token_b "$EURC_TOKEN_ADDRESS" \
+            --token_a "$USDC_ADDRESS" \
+            --token_b "$WRAPPED_XLM_ADDRESS" \
             --initial_a 5000000 \
             --initial_b 5000000 \
             --admin "$DEPLOYER_PUBLIC_KEY"
 
-      - name: Verify deployment
+      - name: Extend TTL
         working-directory: contracts
         env:
-          DEPLOYER_SECRET_KEY: ${{ secrets.DEPLOYER_SECRET_KEY }}
+          DEPLOYER_SECRET_KEY: ${{ secrets.MAINNET_DEPLOYER_SECRET_KEY }}
         run: |
-          echo "=== Verification ==="
-          echo "Vault: ${{ steps.deploy-vault.outputs.vault_contract_id }}"
-          echo "AMM: ${{ steps.deploy-amm.outputs.amm_contract_id }}"
+          VAULT_HASH=$(stellar contract info hash --contract-id "${{ steps.deploy-vault.outputs.vault_contract_id }}" --network mainnet | tail -1)
+          AMM_HASH=$(stellar contract info hash --contract-id "${{ steps.deploy-amm.outputs.amm_contract_id }}" --network mainnet | tail -1)
 
-          echo "--- Vault mode ---"
-          stellar contract invoke \
-            --id "${{ steps.deploy-vault.outputs.vault_contract_id }}" \
-            --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet \
-            -- get_mode
-
-          echo "--- Vault keeper ---"
-          stellar contract invoke \
-            --id "${{ steps.deploy-vault.outputs.vault_contract_id }}" \
-            --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet \
-            -- get_keeper
-
-          echo "--- AMM token_a ---"
-          stellar contract invoke \
-            --id "${{ steps.deploy-amm.outputs.amm_contract_id }}" \
-            --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet \
-            -- get_token_a
-
-          echo "--- AMM total_shares ---"
-          stellar contract invoke \
-            --id "${{ steps.deploy-amm.outputs.amm_contract_id }}" \
-            --source "$DEPLOYER_SECRET_KEY" \
-            --network testnet \
-            -- get_total_shares
+          stellar contract extend --source "$DEPLOYER_SECRET_KEY" --network mainnet \
+            --id "${{ steps.deploy-vault.outputs.vault_contract_id }}" --ledgers-to-extend 535679 --durability persistent
+          stellar contract extend --source "$DEPLOYER_SECRET_KEY" --network mainnet \
+            --id "${{ steps.deploy-amm.outputs.amm_contract_id }}" --ledgers-to-extend 535679 --durability persistent
+          stellar contract extend --source "$DEPLOYER_SECRET_KEY" --network mainnet \
+            --wasm-hash "$VAULT_HASH" --ledgers-to-extend 535679 --durability persistent
+          stellar contract extend --source "$DEPLOYER_SECRET_KEY" --network mainnet \
+            --wasm-hash "$AMM_HASH" --ledgers-to-extend 535679 --durability persistent
 
       - name: Summary
         run: |
-          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## Mainnet Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Contract | Address |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| Vault | \`${{ steps.deploy-vault.outputs.vault_contract_id }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| AMM | \`${{ steps.deploy-amm.outputs.amm_contract_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Update MAINNET_ADDRESSES.md" >> $GITHUB_STEP_SUMMARY
+          echo "2. Update keeper/.env for mainnet" >> $GITHUB_STEP_SUMMARY
+          echo "3. Update Render environment variables" >> $GITHUB_STEP_SUMMARY
+          echo "4. Update frontend/.env.local for mainnet" >> $GITHUB_STEP_SUMMARY
+          echo "5. Update Vercel environment variables" >> $GITHUB_STEP_SUMMARY
+          echo "6. Execute 1 XLM smoke test deposit" >> $GITHUB_STEP_SUMMARY
