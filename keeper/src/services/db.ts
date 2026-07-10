@@ -86,7 +86,7 @@ export async function insertCompoundLog(log: {
 
 export async function updateCompoundLog(
   id: string,
-  update: { tx_hash: string; rewards_usd_value?: number }
+  update: { tx_hash: string; gas_cost_xlm?: number; rewards_usd_value?: number }
 ): Promise<void> {
   const { error } = await db
     .from('compound_log')

@@ -1,0 +1,13 @@
+# Gitleaks configuration for RAW$ protocol
+# See: https://github.com/gitleaks/gitleaks
+
+[allowlist]
+  description = "Global allowlist"
+  paths = [
+    # Test/fake keys in vitest config (not real secrets)
+    '''keeper/vitest\.config\.ts$''',
+    # Example/template files with placeholder values
+    '''\.env\.example$''',
+    '''\.env\.local\.example$''',
+    '''\.env\.development$''',
+  ]
