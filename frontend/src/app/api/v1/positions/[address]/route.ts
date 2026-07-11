@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/keeper/auth';
 import { db } from '@/lib/keeper/db';
 import { calcIL } from '@/lib/math';
 import { getRecentSnapshots } from '@/lib/keeper/poolService';
@@ -15,9 +14,6 @@ export async function GET(
   if (!success) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
-
-  const authError = verifyAuth(request);
-  if (authError) return authError;
 
   const { address } = await params;
 

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/keeper/auth';
 import { db } from '@/lib/keeper/db';
 import { enrichPool } from '@/lib/keeper/poolService';
 import { ratelimit } from '@/lib/ratelimit';
@@ -14,9 +13,6 @@ export async function GET(
   if (!success) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
-
-  const authError = verifyAuth(request);
-  if (authError) return authError;
 
   const { pool_id } = await params;
 
