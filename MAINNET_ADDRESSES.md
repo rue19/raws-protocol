@@ -6,7 +6,8 @@ Network: Stellar Mainnet (Public Global Stellar Network ; September 2015)
 
 | Contract | Address | Status |
 |----------|---------|--------|
-| Vault | `CALAEFXRQCI4KQH7QSUAEB6ABIR62VWSJXOT3PSN4ZUQ5UKOPEIGKG5V` | Live |
+| Vault (SafeMode) | `CDSV6OL2STTCBL435NQ5NAVMYFUIODEIXWHDUJ5MRDZL7ATYJUFIOBW7` | Live — SafeMode, router + AMM configured |
+| Vault (YieldMode, old) | `CALAEFXRQCI4KQH7QSUAEB6ABIR62VWSJXOT3PSN4ZUQ5UKOPEIGKG5V` | Deprecated — superseded by SafeMode vault |
 | AMM | `CCYLFR7CBMKDVSE5UPIT52UIE6SEARRXMJTXJ4TFNFIMC7EBVWM6XSKV` | Live (zero liquidity, waiting for first LP) |
 | Deployer / Admin | `GDD6ZI7SPQWJH5CCDFTUQU7SFWJHQ6GMGENS56DN6J2USPSJLT7FGLDM` | Active |
 | Keeper | `GCOV557XW4XLD2XZIWSLSH5CIALAS56PWZRSDXL3XDWURENJITFPFEPZ` | Active |
@@ -40,6 +41,9 @@ Network: Stellar Mainnet (Public Global Stellar Network ; September 2015)
 | Initialize AMM (zero liquidity) | `f24a496ce5e3d7ad70023c49d6c177d2756ad2d51ab359e8c3b64b917b2861cf` |
 | Extend Vault TTL | `fec0f5540e0f4de71cec5511f8299cac83fa58667b6199160b617a3a48b99959` |
 | Extend AMM TTL | `1182ba98eef9fb70a97d3729e8de695e88d18154dcec32404524de86e24744b` |
+| Initialize SafeMode Vault | `1a1ec027fe68a6d746ba7c5e0509664eb47192e74dcf7a3c9fba8344f49c06c4` |
+| Set Router on SafeMode Vault | `937d5a58d3195f9d70e8e612f4ebbfef8d102e521ce7fac268b55d3f84574173` |
+| Set AMM on SafeMode Vault | `f26f4c08f70e96da901727955a9084bfa9424b57806418a83f0979a85ba1c4b3` |
 
 ## Previous (Deprecated) Contracts
 

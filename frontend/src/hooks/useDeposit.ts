@@ -13,12 +13,15 @@ import {
 import { useTxPoller } from './useTxPoller'
 import type { DepositState, PoolWithHealth, TxPollResult } from '@/types'
 
+const XLM_SAC = 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
+const USDC_SAC = 'CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA'
+
 export function useDeposit(pool: PoolWithHealth) {
   const { publicKey, signXdr } = useWallet()
   const [state, setState] = useState<DepositState>({
     phase: 'INPUTTING',
     amount: '',
-    asset: pool.pool_id.split('/')[0] || 'USDC',
+    asset: 'XLM',
     slippage: 0.5,
     splitPreview: null,
     estimatedNEY: pool.ney_score,
@@ -47,6 +50,12 @@ export function useDeposit(pool: PoolWithHealth) {
 
   useTxPoller(state.txHash, handleTxResult)
 
+  const getTokenAddress = useCallback(() => {
+    const asset = state.asset.toUpperCase()
+    if (asset === 'USDC') return USDC_SAC
+    return XLM_SAC
+  }, [state.asset])
+
   const executeDeposit = useCallback(async () => {
     if (!publicKey) return
 
@@ -55,13 +64,15 @@ export function useDeposit(pool: PoolWithHealth) {
 
       const amount = parseFloat(state.amount)
       const amountStroop = BigInt(Math.round(amount * 10_000_000))
+      const tokenAddress = getTokenAddress()
 
       const account = await getSorobanServer().getAccount(publicKey)
       const contract = new Contract(VAULT_CONTRACT_ID)
+
       const operation = contract.call(
         'deposit',
         nativeToScVal(publicKey, { type: 'address' }),
-        nativeToScVal(pool.pool_id.split('/')[0] || pool.pool_id, { type: 'address' }),
+        nativeToScVal(tokenAddress, { type: 'address' }),
         nativeToScVal(amountStroop, { type: 'i128' })
       )
 
@@ -97,13 +108,13 @@ export function useDeposit(pool: PoolWithHealth) {
         setState((s) => ({ ...s, phase: 'ERROR', errorMessage: msg }))
       }
     }
-  }, [publicKey, state.amount, pool.pool_id, signXdr])
+  }, [publicKey, state.amount, state.asset, signXdr, getTokenAddress])
 
   const reset = useCallback(() => {
     setState({
       phase: 'INPUTTING',
       amount: '',
-      asset: pool.pool_id.split('/')[0] || 'USDC',
+      asset: 'XLM',
       slippage: 0.5,
       splitPreview: null,
       estimatedNEY: pool.ney_score,
