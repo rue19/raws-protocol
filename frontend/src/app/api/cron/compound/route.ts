@@ -52,7 +52,7 @@ async function callHarvest(
         'harvest',
         keeperAddress.toScVal(),
         nativeToScVal(lpTokenAddress, { type: 'address' }),
-        nativeToScVal(Number(rewardAmount), { type: 'i128' }),
+        nativeToScVal(rewardAmount.toString(), { type: 'i128' }),
       ),
     )
     .setTimeout(30)
@@ -89,7 +89,14 @@ export async function GET(request: NextRequest) {
   }
 
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || !authHeader) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const { timingSafeEqual } = await import('crypto');
+  const expected = Buffer.from(`Bearer ${cronSecret}`);
+  const received = Buffer.from(authHeader);
+  if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -100,7 +107,7 @@ export async function GET(request: NextRequest) {
 
   const vaultContractId = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ID;
   const rpcUrl = process.env.NEXT_PUBLIC_STELLAR_RPC_URL;
-  const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet';
+  const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK;
 
   if (!vaultContractId || !rpcUrl) {
     return NextResponse.json({ error: 'Server misconfigured — missing Stellar env vars' }, { status: 500 });

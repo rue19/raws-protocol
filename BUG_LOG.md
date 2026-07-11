@@ -34,7 +34,7 @@ _(All known bugs fixed)_
 | 4.1 | Keeper key cannot withdraw user funds | PASS | `from.require_auth()` blocks unauthorized caller |
 | 4.2 | Keeper key cannot deposit for user | PASS | Token transfer auth blocks unauthorized deposit |
 | 4.3 | Attacker cannot withdraw user's position | PASS | Auth check blocks cross-user withdrawal |
-| 4.4 | API rate limit enforcement | FAIL | BUG-005 — Render proxy strips IP, rate limit ineffective |
+| 4.4 | API rate limit enforcement | PASS | BUG-005 fixed — trustProxy added to Fastify |
 | 4.5 | WebSocket invalid address rejected | PASS | Regex validation + immediate close |
 | 4.5 | WebSocket SQL injection rejected | PASS | Address format validation rejects injection |
 

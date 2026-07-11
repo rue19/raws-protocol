@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 !.env.local.example
+!.env.enc
+!.env.local.enc
+
+# Encryption key — NEVER commit
+.secrets.key
 
 # Deployment artifacts
 contracts/deploy-mainnet.env

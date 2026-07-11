@@ -33,9 +33,9 @@ export async function telegramRoutes(fastify: FastifyInstance): Promise<void> {
     '/webhook/telegram',
     async (request: FastifyRequest, reply) => {
 
-      // Validate Telegram webhook secret
+      // Validate Telegram webhook secret — reject if not configured or mismatched
       const secret = request.headers['x-telegram-bot-api-secret-token'];
-      if (config.TELEGRAM_WEBHOOK_SECRET && secret !== config.TELEGRAM_WEBHOOK_SECRET) {
+      if (!config.TELEGRAM_WEBHOOK_SECRET || secret !== config.TELEGRAM_WEBHOOK_SECRET) {
         return reply.status(401).send({ error: 'Unauthorized' });
       }
 

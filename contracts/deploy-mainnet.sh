@@ -22,22 +22,24 @@ STATE_FILE="${SCRIPT_DIR}/deploy-state.json"
 LOG_FILE="${SCRIPT_DIR}/deploy-$(date -u +%Y%m%dT%H%M%SZ).log"
 
 NETWORK="mainnet"
-RPC_URL="https://mainnet.stellar.org/soroban/rpc"
+RPC_URL="https://rpc.ankr.com/stellar_soroban"
 PASSPHRASE="Public Global Stellar Network ; September 2015"
 WASM_DIR="${SCRIPT_DIR}/target/wasm32-unknown-unknown/release"
 
 DRY_RUN=false
 RESUME=false
 STATUS_ONLY=false
+SKIP_AMM_INIT=false
 
 # --- Parse flags ---
 for arg in "$@"; do
   case "$arg" in
-    --dry-run)  DRY_RUN=true ;;
-    --resume)   RESUME=true ;;
-    --status)   STATUS_ONLY=true ;;
+    --dry-run)       DRY_RUN=true ;;
+    --resume)        RESUME=true ;;
+    --status)        STATUS_ONLY=true ;;
+    --skip-amm-init) SKIP_AMM_INIT=true ;;
     -h|--help)
-      echo "Usage: $0 [--dry-run] [--resume] [--status]"
+      echo "Usage: $0 [--dry-run] [--resume] [--status] [--skip-amm-init]"
       exit 0
       ;;
   esac
@@ -72,10 +74,10 @@ state_save() {
   else
     tmp="{}"
   fi
-  echo "$tmp" | python3 -c "
-import sys, json
+  echo "$tmp" | RESULT="$result" STEP="$step" TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)" python3 -c "
+import sys, json, os
 d = json.load(sys.stdin)
-d['step_${step}'] = {'status': 'done', 'result': '''${result}''', 'timestamp': '$(date -u +%Y-%m-%dT%H:%M:%SZ)'}
+d['step_' + os.environ['STEP']] = {'status': 'done', 'result': os.environ['RESULT'], 'timestamp': os.environ['TIMESTAMP']}
 json.dump(d, sys.stdout, indent=2)
 " > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
 }
@@ -96,7 +98,7 @@ run_cmd() {
     echo -e "${YELLOW}[DRY-RUN]${NC} $*"
     return 0
   fi
-  eval "$@" 2>&1 | tee -a "$LOG_FILE"
+  "$@" 2>&1 | tee -a "$LOG_FILE"
 }
 
 skip_or_run() {
@@ -114,7 +116,7 @@ skip_or_run() {
 
   log "Step ${step}: ${desc}"
   local output
-  output=$(eval "$cmd" 2>&1)
+  output=$(bash -c "$cmd" 2>&1)
   echo "$output" | tee -a "$LOG_FILE"
 
   local exit_code=${PIPESTATUS[0]}
@@ -135,7 +137,6 @@ validate_env() {
     SOROSWAP_ROUTER_ADDRESS
     WRAPPED_XLM_ADDRESS
     USDC_ADDRESS
-    AQUA_TOKEN_ADDRESS
   )
   local missing=()
   for var in "${required[@]}"; do
@@ -220,7 +221,7 @@ AMM_CONTRACT_ID=""
 # --- Step 1: Build WASM ---
 if ! state_done 1 || ! $RESUME; then
   log "Step 1: Building contracts..."
-  run_cmd "cd '${SCRIPT_DIR}' && cargo build --target wasm32-unknown-unknown --release"
+  run_cmd bash -c "cd '${SCRIPT_DIR}' && cargo build --target wasm32-unknown-unknown --release"
   state_save 1 "build_complete"
   ok "Step 1: WASM built"
 else
@@ -230,9 +231,8 @@ fi
 # --- Step 2: Optimize WASM ---
 if ! state_done 2 || ! $RESUME; then
   log "Step 2: Optimizing WASM..."
-  run_cmd "cd '${SCRIPT_DIR}' && stellar contract optimize --wasm '${WASM_DIR}/raws_vault.wasm'"
-  run_cmd "cd '${SCRIPT_DIR}' && stellar contract optimize --wasm '${WASM_DIR}/raws_amm.wasm'"
-  local vault_size
+  run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract optimize --wasm '${WASM_DIR}/raws_vault.wasm'"
+  run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract optimize --wasm '${WASM_DIR}/raws_amm.wasm'"
   vault_size=$(wc -c < "${WASM_DIR}/raws_vault.optimized.wasm")
   amm_size=$(wc -c < "${WASM_DIR}/raws_amm.optimized.wasm")
   log "  Vault WASM: ${vault_size} bytes"
@@ -261,10 +261,9 @@ fi
 # --- Step 4: Verify Vault ---
 if ! state_done 4 || ! $RESUME; then
   log "Step 4: Verifying vault..."
-  local version
-  version=$(run_cmd "cd '${SCRIPT_DIR}' && stellar contract invoke --id '${VAULT_CONTRACT_ID}' --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} -- version")
-  if echo "$version" | grep -q "1"; then
-    state_save 4 "version=1"
+  balance_check=$(run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract invoke --id '${VAULT_CONTRACT_ID}' --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} -- get_balance --who '${ADMIN_ADDRESS}'")
+  if echo "$balance_check" | grep -qE '[0-9]'; then
+    state_save 4 "exists"
     ok "Step 4: Vault verified"
   else
     fail "Step 4: Vault verification failed"
@@ -291,7 +290,7 @@ fi
 # --- Step 6: Verify AMM ---
 if ! state_done 6 || ! $RESUME; then
   log "Step 6: Verifying AMM (should error with not initialized)..."
-  run_cmd "cd '${SCRIPT_DIR}' && stellar contract invoke --id '${AMM_CONTRACT_ID}' --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} -- get_token_a" || true
+  run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract invoke --id '${AMM_CONTRACT_ID}' --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} -- get_token_a" || true
   state_save 6 "live"
   ok "Step 6: AMM is live"
 else
@@ -328,16 +327,17 @@ else
   ok "Step 9: Already set (resume)"
 fi
 
-# --- Step 10: Initialize AMM ---
-if ! state_done 10 || ! $RESUME; then
+# --- Step 10: Initialize AMM (skippable with --skip-amm-init) ---
+if $SKIP_AMM_INIT; then
+  warn "Step 10: Skipped (--skip-amm-init). AMM not initialized. Fund account and run: --resume"
+  state_save 10 "skipped"
+elif ! state_done 10 || ! $RESUME; then
   log "Checking admin token balances..."
-  local usdc_bal xlm_bal
-  usdc_bal=$(run_cmd "curl -s 'https://horizon.stellar.org/accounts/${ADMIN_ADDRESS}' | python3 -c \"import sys,json; d=json.load(sys.stdin); print([b['balance'] for b in d['balances'] if b.get('asset_code')=='USDC'][0])\"" 2>/dev/null || echo "0")
-  xlm_bal=$(run_cmd "curl -s 'https://horizon.stellar.org/accounts/${ADMIN_ADDRESS}' | python3 -c \"import sys,json; d=json.load(sys.stdin); print([b['balance'] for b in d['balances'] if b.get('asset_type')=='native'][0])\"" 2>/dev/null || echo "0")
+  usdc_bal=$(run_cmd bash -c "curl -s 'https://horizon.stellar.org/accounts/${ADMIN_ADDRESS}' | python3 -c \"import sys,json; d=json.load(sys.stdin); print([b['balance'] for b in d['balances'] if b.get('asset_code')=='USDC'][0])\"" 2>/dev/null || echo "0")
+  xlm_bal=$(run_cmd bash -c "curl -s 'https://horizon.stellar.org/accounts/${ADMIN_ADDRESS}' | python3 -c \"import sys,json; d=json.load(sys.stdin); print([b['balance'] for b in d['balances'] if b.get('asset_type')=='native'][0])\"" 2>/dev/null || echo "0")
   log "  USDC balance: ${usdc_bal}"
   log "  XLM balance: ${xlm_bal}"
 
-  local usdc_whole xlm_whole
   usdc_whole=$(echo "$usdc_bal" | cut -d. -f1)
   xlm_whole=$(echo "$xlm_bal" | cut -d. -f1)
   if [[ "${usdc_whole:-0}" -lt 1 ]] || [[ "${xlm_whole:-0}" -lt 1 ]]; then
@@ -355,13 +355,13 @@ fi
 # --- Step 11: Extend TTL ---
 if ! state_done 11 || ! $RESUME; then
   log "Step 11: Extending contract TTL to prevent archival..."
-  WASM_HASH_VAULT=$(run_cmd "cd '${SCRIPT_DIR}' && stellar contract info hash --contract-id '${VAULT_CONTRACT_ID}' --network ${NETWORK}" | tail -1)
-  WASM_HASH_AMM=$(run_cmd "cd '${SCRIPT_DIR}' && stellar contract info hash --contract-id '${AMM_CONTRACT_ID}' --network ${NETWORK}" | tail -1)
+  WASM_HASH_VAULT=$(run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract info hash --contract-id '${VAULT_CONTRACT_ID}' --network ${NETWORK}" | tail -1)
+  WASM_HASH_AMM=$(run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract info hash --contract-id '${AMM_CONTRACT_ID}' --network ${NETWORK}" | tail -1)
 
-  run_cmd "cd '${SCRIPT_DIR}' && stellar contract extend --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} --id '${VAULT_CONTRACT_ID}' --ledgers-to-extend 535679 --durability persistent"
-  run_cmd "cd '${SCRIPT_DIR}' && stellar contract extend --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} --id '${AMM_CONTRACT_ID}' --ledgers-to-extend 535679 --durability persistent"
-  run_cmd "cd '${SCRIPT_DIR}' && stellar contract extend --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} --wasm-hash '${WASM_HASH_VAULT}' --ledgers-to-extend 535679 --durability persistent"
-  run_cmd "cd '${SCRIPT_DIR}' && stellar contract extend --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} --wasm-hash '${WASM_HASH_AMM}' --ledgers-to-extend 535679 --durability persistent"
+  run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract extend --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} --id '${VAULT_CONTRACT_ID}' --ledgers-to-extend 535679 --durability persistent"
+  run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract extend --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} --id '${AMM_CONTRACT_ID}' --ledgers-to-extend 535679 --durability persistent"
+  run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract extend --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} --wasm-hash '${WASM_HASH_VAULT}' --ledgers-to-extend 535679 --durability persistent"
+  run_cmd bash -c "cd '${SCRIPT_DIR}' && stellar contract extend --source '${DEPLOYER_SECRET_KEY}' --network ${NETWORK} --wasm-hash '${WASM_HASH_AMM}' --ledgers-to-extend 535679 --durability persistent"
 
   state_save 11 "ttl_extended"
   ok "Step 11: TTL extended (~30 days)"

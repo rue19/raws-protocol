@@ -54,8 +54,8 @@ export async function buildServer(): Promise<FastifyInstance> {
   fastify.addHook('preHandler', async (request, reply) => {
     const path = request.url.split('?')[0];
 
-    // Skip auth for public paths
-    if (PUBLIC_PATHS.some((p) => path.startsWith(p))) return;
+    // Skip auth for public paths (exact match)
+    if (PUBLIC_PATHS.includes(path)) return;
 
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

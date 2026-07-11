@@ -1,4 +1,4 @@
-const HORIZON_URL = process.env.STELLAR_HORIZON_URL ?? 'https://horizon-testnet.stellar.org';
+const HORIZON_URL = process.env.STELLAR_HORIZON_URL;
 
 export class HorizonError extends Error {
   statusCode?: number;

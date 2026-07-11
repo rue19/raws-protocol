@@ -16,6 +16,13 @@ pub fn get_token_b(env: &Env) -> Address {
         .unwrap()
 }
 
+pub fn get_admin(env: &Env) -> Address {
+    env.storage()
+        .instance()
+        .get::<DataKey, Address>(&DataKey::Admin)
+        .unwrap()
+}
+
 pub fn get_balances(env: &Env) -> (i128, i128) {
     env.storage()
         .instance()
@@ -51,4 +58,15 @@ pub fn set_shares(env: &Env, user: &Address, amount: i128) {
     env.storage()
         .persistent()
         .set(&DataKey::Shares(user.clone()), &amount);
+}
+
+pub fn is_paused(env: &Env) -> bool {
+    env.storage()
+        .instance()
+        .get::<DataKey, bool>(&DataKey::Paused)
+        .unwrap_or(false)
+}
+
+pub fn set_paused(env: &Env, paused: bool) {
+    env.storage().instance().set(&DataKey::Paused, &paused);
 }

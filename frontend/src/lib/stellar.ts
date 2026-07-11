@@ -13,7 +13,8 @@ export function getSorobanServer(): rpc.Server {
 
 export function getHorizonServer(): Horizon.Server {
   if (_horizon) return _horizon
-  const url = process.env.NEXT_PUBLIC_HORIZON_URL ?? 'https://horizon-testnet.stellar.org'
+  const url = process.env.NEXT_PUBLIC_HORIZON_URL
+  if (!url) throw new Error('NEXT_PUBLIC_HORIZON_URL missing')
   _horizon = new Horizon.Server(url)
   return _horizon
 }

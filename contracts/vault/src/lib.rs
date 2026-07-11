@@ -599,4 +599,8 @@ impl VaultContract {
 
         df_tokens
     }
+
+    pub fn version(_env: Env) -> u32 {
+        1
+    }
 }

@@ -22,6 +22,10 @@ pub const FEE_BPS: i128 = 4;
 pub const BPS_BASE: i128 = 10_000;
 const MIN_INITIAL_DEPOSIT: i128 = 1_000_000;
 
+fn require_not_paused(env: &Env) {
+    assert!(!is_paused(env), "Contract is paused");
+}
+
 #[contract]
 pub struct RawsAMM;
 
@@ -40,23 +44,21 @@ impl RawsAMM {
             "AlreadyInitialized"
         );
 
-        assert!(initial_a >= MIN_INITIAL_DEPOSIT, "InitialDepositTooSmall");
-        assert!(initial_b >= MIN_INITIAL_DEPOSIT, "InitialDepositTooSmall");
+        assert!(initial_a >= 0 && initial_b >= 0, "NegativeDeposit");
+
+        admin.require_auth();
 
         env.storage().instance().set(&DataKey::TokenA, &token_a);
         env.storage().instance().set(&DataKey::TokenB, &token_b);
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Initialized, &true);
-        env.storage()
-            .instance()
-            .set(&DataKey::Balances, &(0i128, 0i128));
-        env.storage().instance().set(&DataKey::TotalShares, &0i128);
 
-        admin.require_auth();
-        token::Client::new(&env, &token_a)
-            .transfer(&admin, &env.current_contract_address(), &initial_a);
-        token::Client::new(&env, &token_b)
-            .transfer(&admin, &env.current_contract_address(), &initial_b);
+        if initial_a > 0 && initial_b > 0 {
+            token::Client::new(&env, &token_a)
+                .transfer(&admin, &env.current_contract_address(), &initial_a);
+            token::Client::new(&env, &token_b)
+                .transfer(&admin, &env.current_contract_address(), &initial_b);
+        }
 
         let initial_d = get_d(&(initial_a, initial_b), ANN);
         env.storage()
@@ -78,6 +80,7 @@ impl RawsAMM {
         amount_in: i128,
         min_out: i128,
     ) -> i128 {
+        require_not_paused(&env);
         caller.require_auth();
         assert!(amount_in > 0, "ZeroInput");
 
@@ -137,6 +140,7 @@ impl RawsAMM {
         desired_b: i128,
         min_shares: i128,
     ) -> i128 {
+        require_not_paused(&env);
         caller.require_auth();
         assert!(desired_a > 0 || desired_b > 0, "ZeroDeposit");
 
@@ -219,6 +223,7 @@ impl RawsAMM {
         min_a: i128,
         min_b: i128,
     ) -> (i128, i128) {
+        require_not_paused(&env);
         caller.require_auth();
         assert!(shares_to_burn > 0, "ZeroShares");
 
@@ -269,5 +274,27 @@ impl RawsAMM {
 
     pub fn get_token_b(env: Env) -> Address {
         storage::get_token_b(&env)
+    }
+
+    pub fn get_admin(env: Env) -> Address {
+        storage::get_admin(&env)
+    }
+
+    pub fn pause(env: Env, caller: Address) {
+        caller.require_auth();
+        let admin = storage::get_admin(&env);
+        assert!(caller == admin, "OnlyAdmin");
+        set_paused(&env, true);
+    }
+
+    pub fn unpause(env: Env, caller: Address) {
+        caller.require_auth();
+        let admin = storage::get_admin(&env);
+        assert!(caller == admin, "OnlyAdmin");
+        set_paused(&env, false);
+    }
+
+    pub fn is_paused(env: Env) -> bool {
+        storage::is_paused(&env)
     }
 }

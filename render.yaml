@@ -13,23 +13,27 @@ services:
       - key: NODE_ENV
         value: production
       - key: STELLAR_NETWORK
-        value: testnet
+        value: mainnet
       - key: STELLAR_RPC_URL
-        sync: false
+        value: "https://rpc.ankr.com/stellar_soroban"
       - key: STELLAR_HORIZON_URL
-        sync: false
+        value: "https://horizon.stellar.org"
       - key: STELLAR_NETWORK_PASSPHRASE
-        value: "Test SDF Network ; September 2015"
+        value: "Public Global Stellar Network ; September 2015"
       - key: KEEPER_PUBLIC_KEY
-        sync: false
+        value: "GCOV557XW4XLD2XZIWSLSH5CIALAS56PWZRSDXL3XDWURENJITFPFEPZ"
       - key: KEEPER_SECRET_KEY
         sync: false
       - key: VAULT_CONTRACT_ID
-        sync: false
+        value: "CALAEFXRQCI4KQH7QSUAEB6ABIR62VWSJXOT3PSN4ZUQ5UKOPEIGKG5V"
       - key: AMM_CONTRACT_ID
-        sync: false
+        value: "CCYLFR7CBMKDVSE5UPIT52UIE6SEARRXMJTXJ4TFNFIMC7EBVWM6XSKV"
+      - key: SOROSWAP_ROUTER_ADDRESS
+        value: "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH"
+      - key: AQUA_TOKEN_ADDRESS
+        value: "CAUIKL3IYGMERDRUN6YSCLWVAKIFG5Q4YJHUKM4S4NJZQIA3BAS6OJPK"
       - key: SUPABASE_URL
-        sync: false
+        value: "https://bujntjysxdodgcttoxar.supabase.co"
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: API_SECRET
@@ -39,7 +43,7 @@ services:
       - key: TELEGRAM_WEBHOOK_SECRET
         sync: false
       - key: FRONTEND_URL
-        value: "https://raws-protocol.vercel.app"
+        value: "https://rawstellar.vercel.app"
       - key: AQUARIUS_API_URL
         value: "https://api.aqua.network/api/v1"
       - key: WATCHDOG_INTERVAL_MINUTES

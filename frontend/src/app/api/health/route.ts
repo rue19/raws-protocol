@@ -5,7 +5,7 @@ export async function GET() {
     status: 'ok',
     service: 'raws-api',
     version: '1.0.0',
-    network: process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'testnet',
+    network: process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? 'unknown',
     timestamp: new Date().toISOString(),
   });
 }

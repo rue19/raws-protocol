@@ -73,7 +73,7 @@ export function timeAgo(timestamp: string): string {
 export function explorerBase(): string {
   return process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet'
     ? 'https://stellar.expert/explorer/public'
-    : 'https://stellar.expert/explorer/testnet';
+    : 'https://stellar.expert/explorer';
 }
 
 /** Return Tailwind text colour class based on health status */

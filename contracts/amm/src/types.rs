@@ -10,4 +10,5 @@ pub enum DataKey {
     Balances,
     TotalShares,
     Shares(Address),
+    Paused,
 }
