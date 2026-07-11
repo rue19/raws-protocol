@@ -72,7 +72,7 @@ export function SmartExitModal() {
           try {
             const ammContractId = process.env.NEXT_PUBLIC_AMM_CONTRACT_ID ?? '';
             if (ammContractId) {
-              const passphrase = process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? Networks.TESTNET;
+              const passphrase = Networks.PUBLIC;
               const rpcServer = getSorobanServer();
               const ammContract = new Contract(ammContractId);
               const op = ammContract.call('get_token_a');

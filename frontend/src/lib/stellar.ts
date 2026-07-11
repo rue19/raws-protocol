@@ -24,8 +24,7 @@ export const sorobanServer = typeof window !== 'undefined'
   ? (() => { try { return getSorobanServer() } catch { return null as unknown as rpc.Server } })()
   : (null as unknown as rpc.Server)
 
-export const NETWORK_PASSPHRASE =
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? Networks.TESTNET
+export const NETWORK_PASSPHRASE = Networks.PUBLIC
 
 export const VAULT_CONTRACT_ID = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ID ?? ''
 export const AMM_CONTRACT_ID = process.env.NEXT_PUBLIC_AMM_CONTRACT_ID ?? ''

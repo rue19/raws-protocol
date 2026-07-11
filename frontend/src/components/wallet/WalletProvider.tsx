@@ -21,13 +21,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const setWalletAddress = useStore((s) => s.setWalletAddress)
 
   useEffect(() => {
-    const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK === 'mainnet'
-      ? Networks.PUBLIC
-      : Networks.TESTNET
-
     StellarWalletsKit.init({
       modules: defaultModules(),
-      network,
+      network: Networks.PUBLIC,
     })
 
     // Reconcile: prefer kit's active address over stale raws_wallet
