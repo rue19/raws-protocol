@@ -34,6 +34,26 @@ loss) — a metric no other Stellar protocol offers.
 | AQUA Token | `CAUIKL3IYGMERDRUN6YSCLWVAKIFG5Q4YJHUKM4S4NJZQIA3BAS6OJPK` |
 | USDC (Circle) | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` |
 
+## Screenshots
+
+### Landing Page
+![Landing](screenshots/landing.png)
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### Pool Explorer
+![Pool Explorer](screenshots/pool_explorer.png)
+
+### Alerts
+![Alerts](screenshots/alerts.png)
+
+### Mainnet — Pool Data
+![Mainnet Pools](screenshots/mainnet-pools.png)
+
+### Mainnet — Deposit Flow
+![Mainnet Deposit](screenshots/mainnet-deposit.png)
+
 ## Features
 
 - **Net Effective Yield (NEY)** — Swap fees earned minus impermanent loss,
