@@ -47,14 +47,15 @@ The following contracts were deployed earlier but are now superseded:
 - Vault: `CCWSFO2Z2MPRE4UDDOVJ536BP2KKZRQTGGPQB3JJWW2NJAJFF3KCXBQL` (deprecated)
 - AMM: `CB7WKO3MF3X4MBQRKFIH7DEVZ6FGS6AF3AFCXRTHD64LBSTPIW6YSP26` (deprecated)
 
-## Pending Actions
+## Completed Actions
 
 1. Fund deployer with USDC and Wrapped XLM
 2. Add liquidity to AMM via `add_liquidity` (first LP sets price ratio)
-3. Update `frontend/.env.local` with `NEXT_PUBLIC_VAULT_CONTRACT_ID=CALAEFXRQCI4KQH7QSUAEB6ABIR62VWSJXOT3PSN4ZUQ5UKOPEIGKG5V`
-4. Update `frontend/.env.local` with `NEXT_PUBLIC_AMM_CONTRACT_ID=CCYLFR7CBMKDVSE5UPIT52UIE6SEARRXMJTXJ4TFNFIMC7EBVWM6XSKV`
-5. Update `keeper/.env` with same contract IDs
-6. Update Vercel and Render environment variables
+3. Update `frontend/.env.local` with contract IDs
+4. Update `keeper/.env` with contract IDs
+5. Update Vercel and Render environment variables
+6. Deploy frontend to https://rawstellar.vercel.app
+7. Set up Telegram webhook
 
 ## Stellar Expert Links
 

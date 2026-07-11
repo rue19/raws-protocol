@@ -62,11 +62,11 @@ Soroban Smart Contracts (Stellar Testnet → Mainnet)
 
 ## Live Links
 
-- **Testnet App:** https://frontend-beta-rouge-rgheunscve.vercel.app
+- **Mainnet App:** https://rawstellar.vercel.app
 - **GitHub:** https://github.com/rue19/raws-protocol
-- **API:** https://raws-api.onrender.com/api/v1
-- **Vault Contract:** `CC4LKQ5BIVLIBC6ZCJIZPBVLD7JRXQKGT7IL6UM7QDHBDTVGYNBV6IQ3` (Stellar Testnet)
-- **AMM Contract:** `CDTNHVUFYEZXZX3UNFF7C3SGOUBOEQA2HMQJ6YLYUPEXH35Y6VGT7IKR` (Stellar Testnet)
+- **API:** https://raws-api.onrender.com
+- **Vault Contract:** `CALAEFXRQCI4KQH7QSUAEB6ABIR62VWSJXOT3PSN4ZUQ5UKOPEIGKG5V` (Stellar Mainnet)
+- **AMM Contract:** `CCYLFR7CBMKDVSE5UPIT52UIE6SEARRXMJTXJ4TFNFIMC7EBVWM6XSKV` (Stellar Mainnet)
 
 ---
 
